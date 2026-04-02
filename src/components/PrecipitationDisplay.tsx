@@ -7,7 +7,8 @@ import {
   InfoIcon, 
   CalendarIcon,
   CheckIcon,
-  XIcon
+  XIcon,
+  AlertTriangleIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import EmailNotificationForm from './EmailNotificationForm';
@@ -25,7 +26,8 @@ export interface PrecipitationData {
     day5: number;
     recommendedWateringDay: number;
   };
-  shouldWater: boolean;
+  recommendation: 'WATER' | 'MONITOR' | 'SKIP';
+  recommendationReason: string;
   lastUpdated: string;
   etLoss7d: number;
 }
@@ -40,19 +42,46 @@ const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data }) => 
   };
 
   const getRecommendationText = (): string => {
-    if (!data.shouldWater) {
-      return "Your lawn doesn't need watering at this time.";
+    if (data.recommendation !== 'WATER') {
+      return data.recommendationReason;
     }
 
-    switch (data.forecast.recommendedWateringDay) {
-      case 0:
-        return "Water your lawn today.";
-      case 1:
-        return "Water your lawn tomorrow.";
-      default:
-        return `Water your lawn in ${data.forecast.recommendedWateringDay} days.`;
-    }
+    const dayText = (() => {
+      switch (data.forecast.recommendedWateringDay) {
+        case 0: return 'Water your lawn today.';
+        case 1: return 'Water your lawn tomorrow.';
+        default: return `Water your lawn in ${data.forecast.recommendedWateringDay} days.`;
+      }
+    })();
+
+    return dayText;
   };
+
+  const badgeConfig = {
+    WATER: {
+      className: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+      icon: <DropletIcon className="h-4 w-4 text-blue-800" />,
+      label: 'Watering Needed',
+      textColor: 'text-blue-700',
+      iconColor: 'text-blue-600',
+    },
+    MONITOR: {
+      className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
+      icon: <AlertTriangleIcon className="h-4 w-4 text-yellow-800" />,
+      label: 'Monitor',
+      textColor: 'text-yellow-700',
+      iconColor: 'text-yellow-600',
+    },
+    SKIP: {
+      className: 'bg-green-100 text-green-800 hover:bg-green-100',
+      icon: <CheckIcon className="h-4 w-4 text-green-800" />,
+      label: 'No Watering Needed',
+      textColor: 'text-green-700',
+      iconColor: 'text-green-600',
+    },
+  };
+
+  const badge = badgeConfig[data.recommendation];
 
   const getFormattedDate = (daysFromNow: number): string => {
     const date = new Date();
@@ -65,121 +94,111 @@ const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data }) => 
       <div className="flex flex-col md:flex-row items-start justify-between gap-6">
         <div className="w-full">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Watering Recommendation</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Watering Recommendation</h2>
             <div className="flex items-center">
               <Badge 
-                variant={data.shouldWater ? "default" : "outline"}
+                variant="outline"
                 className={cn(
                   "text-sm py-1 px-3 gap-1 font-medium rounded-full",
-                  data.shouldWater 
-                    ? "bg-blue-100 text-blue-800 hover:bg-blue-100" 
-                    : "bg-green-100 text-green-800 hover:bg-green-100"
+                  badge.className
                 )}
               >
-                {data.shouldWater 
-                  ? <DropletIcon className="h-4 w-4 text-blue-800" /> 
-                  : <CheckIcon className="h-4 w-4 text-green-800" />
-                }
-                {data.shouldWater ? "Watering Needed" : "No Watering Needed"}
+                {badge.icon}
+                {badge.label}
               </Badge>
-              <span className="text-gray-500 text-sm ml-4">
+              <span className="text-muted-foreground text-sm ml-4">
                 Last updated: {data.lastUpdated}
               </span>
             </div>
           </div>
 
-          <Card className="p-6 mb-6 border border-gray-200 bg-white rounded-xl shadow-sm">
+          <Card className="p-6 mb-6 border border-border bg-card rounded-xl shadow-sm">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center">
-                <CalendarIcon className={cn(
-                  "mr-2 h-5 w-5",
-                  data.shouldWater ? "text-blue-600" : "text-green-600"
-                )} />
-                <h3 className="text-xl font-semibold text-gray-900">Recommendation</h3>
+                <CalendarIcon className={cn("mr-2 h-5 w-5", badge.iconColor)} />
+                <h3 className="text-xl font-semibold text-foreground">Recommendation</h3>
               </div>
             </div>
             
-            <div className="mb-5 pb-5 border-b border-gray-100">
-              <div className={cn(
-                "text-xl font-semibold",
-                data.shouldWater ? "text-blue-700" : "text-green-700"
-              )}>
+            <div className="mb-5 pb-5 border-b border-border">
+              <div className={cn("text-xl font-semibold", badge.textColor)}>
                 {getRecommendationText()}
               </div>
-              <p className="text-gray-600 mt-2">
-                This recommendation is based on past precipitation data and weather forecast for your location.
+              <p className="text-muted-foreground mt-2">
+                {data.recommendationReason}
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">
+                <h4 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">
                   Historical Precipitation
                 </h4>
                 <ul className="space-y-3">
                   <li className="flex justify-between items-center">
-                    <span className="text-gray-600">Last 24 hours:</span>
-                    <span className="font-medium">{formatPrecipitation(data.precipitation.day1)}"</span>
+                    <span className="text-muted-foreground">Last 24 hours:</span>
+                    <span className="font-medium text-foreground">{formatPrecipitation(data.precipitation.day1)}"</span>
                   </li>
                   <li className="flex justify-between items-center">
-                    <span className="text-gray-600">Last 3 days:</span>
-                    <span className="font-medium">{formatPrecipitation(data.precipitation.day3)}"</span>
+                    <span className="text-muted-foreground">Last 3 days:</span>
+                    <span className="font-medium text-foreground">{formatPrecipitation(data.precipitation.day3)}"</span>
                   </li>
                   <li className="flex justify-between items-center">
-                    <span className="text-gray-600">Last 5 days:</span>
-                    <span className="font-medium">{formatPrecipitation(data.precipitation.day5)}"</span>
+                    <span className="text-muted-foreground">Last 5 days:</span>
+                    <span className="font-medium text-foreground">{formatPrecipitation(data.precipitation.day5)}"</span>
                   </li>
                 </ul>
               </div>
               
               <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">
+                <h4 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">
                   Precipitation Forecast
                 </h4>
                 <ul className="space-y-3">
                   <li className="flex justify-between items-center">
-                    <span className="text-gray-600">Next 24 hours ({getFormattedDate(1)}):</span>
-                    <span className="font-medium">{formatPrecipitation(data.forecast.day1)}"</span>
+                    <span className="text-muted-foreground">Next 24 hours ({getFormattedDate(1)}):</span>
+                    <span className="font-medium text-foreground">{formatPrecipitation(data.forecast.day1)}"</span>
                   </li>
                   <li className="flex justify-between items-center">
-                    <span className="text-gray-600">Next 3 days:</span>
-                    <span className="font-medium">{formatPrecipitation(data.forecast.day3)}"</span>
+                    <span className="text-muted-foreground">Next 3 days:</span>
+                    <span className="font-medium text-foreground">{formatPrecipitation(data.forecast.day3)}"</span>
                   </li>
                   <li className="flex justify-between items-center">
-                    <span className="text-gray-600">Next 5 days:</span>
-                    <span className="font-medium">{formatPrecipitation(data.forecast.day5)}"</span>
+                    <span className="text-muted-foreground">Next 5 days:</span>
+                    <span className="font-medium text-foreground">{formatPrecipitation(data.forecast.day5)}"</span>
                   </li>
                 </ul>
               </div>
             </div>
           </Card>
           
-          <div className="flex items-center text-gray-700 mb-4">
-            <InfoIcon className="h-4 w-4 mr-2 text-gray-500" />
+          <div className="flex items-center text-foreground mb-4">
+            <InfoIcon className="h-4 w-4 mr-2 text-muted-foreground" />
             <p className="text-sm">
               Data is specific to your address: <span className="font-medium">{data.address}</span>
             </p>
           </div>
 
-          <Card className="p-6 border border-gray-200 bg-white rounded-xl shadow-sm">
+          <Card className="p-6 border border-border bg-card rounded-xl shadow-sm">
             <div className="flex items-center mb-4">
-              <DropletIcon className="mr-2 h-5 w-5 text-blue-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Understanding Our Recommendation</h3>
+              <DropletIcon className="mr-2 h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold text-foreground">Understanding Our Recommendation</h3>
             </div>
             
-            <p className="text-gray-600 mb-4">
-              Our recommendation factors in both historical rainfall data for your location and the precipitation
-              forecast for the coming days. Generally, lawns need about 1-1.5 inches of water per week, either from
-              rainfall or irrigation.
+            <p className="text-muted-foreground mb-4">
+              Our recommendation factors in historical rainfall, forecast precipitation, and evapotranspiration (ET)
+              losses for your location. We also adjust for your grass type — cool-season grasses need more water
+              than warm-season varieties.
             </p>
             
-            <div className="bg-blue-50 rounded-lg p-4">
-              <h4 className="font-medium text-blue-800 mb-2">How We Determine Watering Needs:</h4>
-              <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700">
+            <div className="bg-primary/5 rounded-lg p-4">
+              <h4 className="font-medium text-primary mb-2">How We Determine Watering Needs:</h4>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
                 <li>We analyze the past 5 days of precipitation data</li>
                 <li>We factor in the forecast for the next 5 days</li>
+                <li>We account for evapotranspiration (ET) moisture loss over 7 days</li>
+                <li>We adjust for your grass type's water requirements</li>
                 <li>We calculate the optimal watering day based on expected rainfall</li>
-                <li>We update our recommendation daily with fresh data</li>
               </ul>
             </div>
           </Card>
@@ -188,7 +207,7 @@ const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data }) => 
         <div className="w-full md:w-1/3 mt-6 md:mt-0">
           <EmailNotificationForm 
             address={data.address} 
-            shouldWater={data.shouldWater} 
+            recommendation={data.recommendation}
             recommendedWateringDay={data.forecast.recommendedWateringDay} 
           />
         </div>

@@ -9,13 +9,13 @@ import { MailIcon } from 'lucide-react';
 
 interface EmailNotificationFormProps {
   address: string;
-  shouldWater: boolean;
+  recommendation: 'WATER' | 'MONITOR' | 'SKIP';
   recommendedWateringDay: number;
 }
 
 const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({ 
   address, 
-  shouldWater,
+  recommendation,
   recommendedWateringDay 
 }) => {
   const [email, setEmail] = useState('');

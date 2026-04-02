@@ -15,8 +15,13 @@ interface OpenMeteoDaily {
 
 /**
  * Fetches real precipitation data from Open-Meteo for a given US ZIP code.
+ * @param zipCode - 5-digit US ZIP code
+ * @param grassType - Optional grass type for recommendation tuning
  */
-export const fetchPrecipitationData = async (zipCode: string): Promise<PrecipitationData> => {
+export const fetchPrecipitationData = async (
+  zipCode: string,
+  grassType: string = 'Mixed'
+): Promise<PrecipitationData> => {
   // Step 1 — ZIP to coordinates
   const geoRes = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode)}&count=1&country=US&format=json`
@@ -31,7 +36,7 @@ export const fetchPrecipitationData = async (zipCode: string): Promise<Precipita
   const { latitude, longitude, name, admin1 } = geoData.results[0] as GeoResult;
   const locationLabel = admin1 ? `${name}, ${admin1}` : name;
 
-  // Step 2 — Fetch weather data (7 past + 7 forecast days)
+  // Step 2 — Fetch weather data
   const weatherRes = await fetch(
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration&past_days=7&forecast_days=7&timezone=auto`
   );
@@ -45,13 +50,8 @@ export const fetchPrecipitationData = async (zipCode: string): Promise<Precipita
     throw new Error('Unexpected weather API response format');
   }
 
-  // The response contains past_days + forecast_days entries.
-  // past_days=7 means indices 0-6 are past days (oldest first), index 7 is today.
-  // forecast_days=7 means indices 7-13 are today + next 6 days.
-  const totalDays = daily.time.length; // should be 14
-  const todayIndex = 7; // past_days count
+  const todayIndex = 7;
 
-  // Helper to safely sum a slice of precipitation values
   const sumSlice = (arr: number[], start: number, end: number): number => {
     let sum = 0;
     for (let i = Math.max(0, start); i < Math.min(arr.length, end); i++) {
@@ -63,26 +63,47 @@ export const fetchPrecipitationData = async (zipCode: string): Promise<Precipita
   const precip = daily.precipitation_sum;
   const et = daily.et0_fao_evapotranspiration;
 
-  // Step 3 — Map into PrecipitationData
-  // Past precipitation (looking back from today, not including today)
+  // Past precipitation
   const precipDay1 = sumSlice(precip, todayIndex - 1, todayIndex);
   const precipDay3 = sumSlice(precip, todayIndex - 3, todayIndex);
   const precipDay5 = sumSlice(precip, todayIndex - 5, todayIndex);
 
-  // Forecast precipitation (today + future days)
+  // Forecast precipitation
   const forecastDay1 = sumSlice(precip, todayIndex, todayIndex + 1);
   const forecastDay3 = sumSlice(precip, todayIndex, todayIndex + 3);
   const forecastDay5 = sumSlice(precip, todayIndex, todayIndex + 5);
 
-  // Step 4 — ET loss for past 7 days
+  // ET loss for past 7 days
   const etLoss7d = sumSlice(et, todayIndex - 7, todayIndex);
 
-  // Watering logic: compare recent + upcoming precipitation to ET demand
-  const totalRecent = precipDay5 + forecastDay5;
-  const shouldWater = totalRecent < 2.0;
+  // Step 3 — 3-state recommendation logic
+  const grassMultiplier =
+    grassType === 'Cool-Season' ? 1.25 :
+    grassType === 'Warm-Season' ? 0.75 : 1.0;
 
+  const weeklyNeed = 1.0 * grassMultiplier;
+  const rainReceived = precipDay5;
+  const rainComing = forecastDay5;
+  const etLoss = etLoss7d;
+  const deficit = weeklyNeed + etLoss - rainReceived - rainComing;
+
+  let recommendation: 'WATER' | 'MONITOR' | 'SKIP';
+  let recommendationReason: string;
+
+  if (deficit > 0.5) {
+    recommendation = 'WATER';
+    recommendationReason = "Your lawn needs water — rainfall and forecast aren't enough to cover evaporation losses.";
+  } else if (deficit > 0) {
+    recommendation = 'MONITOR';
+    recommendationReason = "You're borderline. Skip today and check again tomorrow.";
+  } else {
+    recommendation = 'SKIP';
+    recommendationReason = 'Rain has you covered. No watering needed this week.';
+  }
+
+  // Recommended watering day only when WATER
   let recommendedWateringDay = -1;
-  if (shouldWater) {
+  if (recommendation === 'WATER') {
     if (forecastDay1 > 0.3) {
       recommendedWateringDay = 0;
     } else if (forecastDay3 - forecastDay1 > 0.5) {
@@ -105,7 +126,8 @@ export const fetchPrecipitationData = async (zipCode: string): Promise<Precipita
       day5: forecastDay5,
       recommendedWateringDay,
     },
-    shouldWater,
+    recommendation,
+    recommendationReason,
     lastUpdated: new Date().toLocaleString(),
     etLoss7d,
   };
