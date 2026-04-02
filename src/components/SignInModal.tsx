@@ -23,7 +23,7 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => {
     const { error: authError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: 'https://thirstygrass.com/dashboard',
       },
     });
 
