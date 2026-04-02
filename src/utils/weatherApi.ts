@@ -38,7 +38,7 @@ export const fetchPrecipitationData = async (
 
   // Step 2 — Fetch weather data
   const weatherRes = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch``
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch`
   );
   if (!weatherRes.ok) {
     throw new Error(`Weather data request failed (${weatherRes.status})`);
