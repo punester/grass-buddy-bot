@@ -27,6 +27,7 @@ export interface PrecipitationData {
   };
   shouldWater: boolean;
   lastUpdated: string;
+  etLoss7d: number;
 }
 
 interface PrecipitationDisplayProps {
