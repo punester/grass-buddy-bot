@@ -12,10 +12,10 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [precipitationData, setPrecipitationData] = useState<PrecipitationData | null>(null);
 
-  const handleAddressSubmit = async (address: string) => {
+  const handleZipSubmit = async (zipCode: string) => {
     setIsLoading(true);
     try {
-      const data = await fetchPrecipitationData(address);
+      const data = await fetchPrecipitationData(zipCode);
       setPrecipitationData(data);
     } catch (error) {
       console.error('Error fetching precipitation data:', error);
@@ -48,7 +48,7 @@ const Index = () => {
               </p>
               
               <div className="fade-in-up" style={{ animationDelay: '0.4s' }}>
-                <AddressForm onSubmit={handleAddressSubmit} isLoading={isLoading} />
+                <AddressForm onSubmit={handleZipSubmit} isLoading={isLoading} />
               </div>
               
               {!precipitationData && (
