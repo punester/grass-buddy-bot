@@ -48,7 +48,7 @@ const Index = () => {
               </p>
               
               <div className="fade-in-up" style={{ animationDelay: '0.4s' }}>
-                <AddressForm onSubmit={handleAddressSubmit} isLoading={isLoading} />
+                <AddressForm onSubmit={handleZipSubmit} isLoading={isLoading} />
               </div>
               
               {!precipitationData && (
