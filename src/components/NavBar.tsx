@@ -48,23 +48,23 @@ const NavBar: React.FC = () => {
           {/* Desktop navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <a
-              href="#how-it-works"
+              href="/#how-it-works"
               className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
             >
               How It Works
             </a>
-            <a
-              href="#about"
+            <Link
+              to="/about"
               className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
             >
               About
-            </a>
-            <a
-              href="#contact"
+            </Link>
+            <Link
+              to="/contact"
               className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
             >
               Contact
-            </a>
+            </Link>
 
             {user ? (
               <div className="flex items-center space-x-4">
