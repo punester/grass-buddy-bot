@@ -11,6 +11,7 @@ import AdminBilling from '@/components/admin/AdminBilling';
 import AdminCache from '@/components/admin/AdminCache';
 import AdminPricing from '@/components/admin/AdminPricing';
 import AdminTuning from '@/components/admin/AdminTuning';
+import AdminReferrals from '@/components/admin/AdminReferrals';
 
 const ADMIN_EMAIL = 'admin@110labs.com';
 
