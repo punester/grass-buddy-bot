@@ -1,5 +1,5 @@
 import React from 'react';
-import { Droplets, GithubIcon, TwitterIcon, InstagramIcon } from 'lucide-react';
+import { Droplets } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Footer: React.FC = () => {
