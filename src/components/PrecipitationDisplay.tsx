@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import EmailNotificationForm from './EmailNotificationForm';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface PrecipitationData {
   address: string;
@@ -37,6 +38,7 @@ interface PrecipitationDisplayProps {
 }
 
 const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data, zipCode }) => {
+  const { user } = useAuth();
   const formatPrecipitation = (inches: number | undefined): string => {
     return (inches ?? 0).toFixed(2);
   };
@@ -200,15 +202,17 @@ const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data, zipCo
             </Card>
           </div>
           
-          <div className="w-full md:w-1/3 mt-6 md:mt-0">
-            <EmailNotificationForm 
-              address={data.address} 
-              recommendation={data.recommendation}
-              recommendedWateringDay={data.forecast.recommendedWateringDay}
-              weatherData={data}
-              zipCode={zipCode}
-            />
-          </div>
+          {!user && (
+            <div className="w-full md:w-1/3 mt-6 md:mt-0">
+              <EmailNotificationForm 
+                address={data.address} 
+                recommendation={data.recommendation}
+                recommendedWateringDay={data.forecast.recommendedWateringDay}
+                weatherData={data}
+                zipCode={zipCode}
+              />
+            </div>
+          )}
         </div>
       </div>
     </>
