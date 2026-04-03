@@ -40,14 +40,17 @@ const About: React.FC = () => {
           <section className="mb-12">
             <h2 className="text-2xl font-semibold text-foreground mb-4">The deficit formula</h2>
             <div className="bg-muted rounded-lg p-5 font-mono text-sm leading-relaxed mb-6 overflow-x-auto">
-              <pre className="text-foreground">{`weeklyNeed = 1.0 in × grassMultiplier
+              <pre className="text-foreground">{`adjustedTarget = etLoss7d × grassMultiplier
   // Cool-Season: ×1.25  |  Warm-Season: ×0.75  |  Mixed: ×1.0
 
-deficit = weeklyNeed + etLoss (7d) − rainReceived (5d) − rainForecast (5d)
+// Soil saturation guard (evaluated first):
+// if rain (past 3 days) > 0.5 in → SKIP regardless of deficit
 
-// deficit > 0.5 in  → WATER
-// deficit 0–0.5 in  → MONITOR
-// deficit < 0       → SKIP`}</pre>
+deficit = adjustedTarget − rain (past 5 days) − forecast (5 days)
+
+// deficit > 0.25 in  →  WATER
+// deficit 0.05–0.25  →  MONITOR
+// deficit < 0.05     →  SKIP`}</pre>
             </div>
 
             <div className="flex flex-wrap gap-3 mb-6">
