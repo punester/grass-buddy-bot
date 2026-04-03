@@ -33,6 +33,7 @@ const Dashboard = () => {
   const [searchParams] = useSearchParams();
   const { isFree, isPaid } = useUserTier();
   const { annualPrice } = useSettings();
+  const { programActive, threshold, referralCode, referralCount, premiumSource, premiumUntil } = useReferralInfo();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [weatherData, setWeatherData] = useState<PrecipitationData | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
