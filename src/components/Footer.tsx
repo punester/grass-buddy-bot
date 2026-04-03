@@ -2,9 +2,12 @@ import React from 'react';
 import { Droplets } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+const ADMIN_EMAIL = 'admin@110labs.com';
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
+  const { user } = useAuth();
+  const isAdmin = user?.email === ADMIN_EMAIL;
 
   return (
     <footer className="py-12 bg-gradient-to-b from-transparent to-gray-50 border-t border-border">
