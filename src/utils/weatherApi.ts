@@ -14,19 +14,115 @@ interface OpenMeteoDaily {
   et0_fao_evapotranspiration: number[];
 }
 
+// --- Admin tuning parameters (module-scope cache) ---
+interface TuningParams {
+  saturation_guard_inches: number;
+  saturation_guard_days: number;
+  water_threshold: number;
+  monitor_threshold: number;
+  cool_season_multiplier: number;
+  warm_season_multiplier: number;
+  mixed_multiplier: number;
+}
+
+const DEFAULTS: TuningParams = {
+  saturation_guard_inches: 0.5,
+  saturation_guard_days: 3,
+  water_threshold: 0.25,
+  monitor_threshold: 0.05,
+  cool_season_multiplier: 1.25,
+  warm_season_multiplier: 0.75,
+  mixed_multiplier: 1.0,
+};
+
+let cachedTuning: TuningParams | null = null;
+
+async function getTuningParams(): Promise<TuningParams> {
+  if (cachedTuning) return cachedTuning;
+  try {
+    const { data } = await supabase
+      .from('admin_settings')
+      .select('key, value');
+    if (data && data.length > 0) {
+      const map: Record<string, string> = {};
+      for (const row of data) {
+        map[row.key] = row.value;
+      }
+      cachedTuning = {
+        saturation_guard_inches: parseFloat(map.saturation_guard_inches) || DEFAULTS.saturation_guard_inches,
+        saturation_guard_days: parseInt(map.saturation_guard_days) || DEFAULTS.saturation_guard_days,
+        water_threshold: parseFloat(map.water_threshold) || DEFAULTS.water_threshold,
+        monitor_threshold: parseFloat(map.monitor_threshold) || DEFAULTS.monitor_threshold,
+        cool_season_multiplier: parseFloat(map.cool_season_multiplier) || DEFAULTS.cool_season_multiplier,
+        warm_season_multiplier: parseFloat(map.warm_season_multiplier) || DEFAULTS.warm_season_multiplier,
+        mixed_multiplier: parseFloat(map.mixed_multiplier) || DEFAULTS.mixed_multiplier,
+      };
+      return cachedTuning;
+    }
+  } catch {
+    // fall through to defaults
+  }
+  cachedTuning = { ...DEFAULTS };
+  return cachedTuning;
+}
+
+/** Clear the cached tuning params (e.g. after admin saves new values) */
+export function clearTuningCache() {
+  cachedTuning = null;
+}
+
+// --- Recommendation logic helper ---
+function computeRecommendation(
+  precipDay3: number,
+  precipDay5: number,
+  forecastDay5: number,
+  etLoss7d: number,
+  grassType: string,
+  tuning: TuningParams,
+) {
+  const grassMultiplier =
+    grassType === 'Cool-Season' ? tuning.cool_season_multiplier :
+    grassType === 'Warm-Season' ? tuning.warm_season_multiplier :
+    tuning.mixed_multiplier;
+
+  const adjustedTarget = etLoss7d * grassMultiplier;
+  const weeklyNeed = adjustedTarget;
+  const deficit = adjustedTarget - precipDay5 - forecastDay5;
+
+  let recommendation: 'WATER' | 'MONITOR' | 'SKIP';
+  let recommendationReason: string;
+
+  if (precipDay3 > tuning.saturation_guard_inches) {
+    recommendation = 'SKIP';
+    recommendationReason =
+      'Soil is likely saturated from recent rainfall. No watering needed right now.';
+  } else if (deficit > tuning.water_threshold) {
+    recommendation = 'WATER';
+    recommendationReason =
+      "Your lawn needs water — recent rainfall and forecast aren't enough to offset evaporation losses.";
+  } else if (deficit > tuning.monitor_threshold) {
+    recommendation = 'MONITOR';
+    recommendationReason =
+      "You're borderline. Skip today and check again tomorrow — conditions may resolve on their own.";
+  } else {
+    recommendation = 'SKIP';
+    recommendationReason =
+      'Rain and forecast precipitation have your lawn covered. No watering needed this week.';
+  }
+
+  return { recommendation, recommendationReason, weeklyNeed, deficit, grassMultiplier };
+}
+
 /**
  * Fetches real precipitation data from Open-Meteo for a given US ZIP code.
- * Uses zip_cache to avoid redundant API calls (24h TTL).
- * Logs each lookup to zip_lookup_log.
- * @param zipCode - 5-digit US ZIP code
- * @param grassType - Optional grass type for recommendation tuning
- * @param userId - Optional user ID for logging (null for anonymous)
  */
 export const fetchPrecipitationData = async (
   zipCode: string,
   grassType: string = 'Mixed',
   userId?: string | null
 ): Promise<PrecipitationData> => {
+  const tuning = await getTuningParams();
+
   // Check cache first
   try {
     const { data: cached } = await supabase
@@ -41,39 +137,19 @@ export const fetchPrecipitationData = async (
       const hoursSinceCached = (now.getTime() - cachedAt.getTime()) / (1000 * 60 * 60);
 
       if (hoursSinceCached < 24) {
-        // Cache hit — increment lookup count
         await supabase.rpc('increment_cache_lookup', { p_zip_code: zipCode });
 
         const cachedData = cached.weather_data as unknown as PrecipitationData;
-        
-        // Re-compute recommendation with current grassType
-        const grassMultiplier =
-          grassType === 'Cool-Season' ? 1.25 :
-          grassType === 'Warm-Season' ? 0.75 : 1.0;
-        const adjustedTarget = cachedData.etLoss7d * grassMultiplier;
-        const weeklyNeed = adjustedTarget;
-        const deficit = adjustedTarget - cachedData.precipitation.day5 - cachedData.forecast.day5;
 
-        let recommendation: 'WATER' | 'MONITOR' | 'SKIP';
-        let recommendationReason: string;
-
-        if (cachedData.precipitation.day3 > 0.5) {
-          recommendation = 'SKIP';
-          recommendationReason =
-            'Soil is likely saturated from recent rainfall. No watering needed right now.';
-        } else if (deficit > 0.25) {
-          recommendation = 'WATER';
-          recommendationReason =
-            "Your lawn needs water — recent rainfall and forecast aren't enough to offset evaporation losses.";
-        } else if (deficit > 0.05) {
-          recommendation = 'MONITOR';
-          recommendationReason =
-            "You're borderline. Skip today and check again tomorrow — conditions may resolve on their own.";
-        } else {
-          recommendation = 'SKIP';
-          recommendationReason =
-            'Rain and forecast precipitation have your lawn covered. No watering needed this week.';
-        }
+        const { recommendation, recommendationReason, weeklyNeed, deficit } =
+          computeRecommendation(
+            cachedData.precipitation.day3,
+            cachedData.precipitation.day5,
+            cachedData.forecast.day5,
+            cachedData.etLoss7d,
+            grassType,
+            tuning,
+          );
 
         const result: PrecipitationData = {
           ...cachedData,
@@ -84,7 +160,6 @@ export const fetchPrecipitationData = async (
           grassType,
         };
 
-        // Log the lookup
         await supabase.rpc('log_zip_lookup', {
           p_zip_code: zipCode,
           p_recommendation: recommendation,
@@ -139,50 +214,18 @@ export const fetchPrecipitationData = async (
   const precip = daily.precipitation_sum;
   const et = daily.et0_fao_evapotranspiration;
 
-  // Past precipitation
   const precipDay1 = sumSlice(precip, todayIndex - 1, todayIndex);
   const precipDay3 = sumSlice(precip, todayIndex - 3, todayIndex);
   const precipDay5 = sumSlice(precip, todayIndex - 5, todayIndex);
 
-  // Forecast precipitation
   const forecastDay1 = sumSlice(precip, todayIndex, todayIndex + 1);
   const forecastDay3 = sumSlice(precip, todayIndex, todayIndex + 3);
   const forecastDay5 = sumSlice(precip, todayIndex, todayIndex + 5);
 
-  // ET loss for past 7 days
   const etLoss7d = sumSlice(et, todayIndex - 7, todayIndex) / 25.4;
 
-  // Step 3 — 3-state recommendation logic
-  const grassMultiplier =
-    grassType === 'Cool-Season' ? 1.25 :
-    grassType === 'Warm-Season' ? 0.75 : 1.0;
-
-  // Use actual measured ET as the water target — not a fixed 1.0" constant.
-  const adjustedTarget = etLoss7d * grassMultiplier;
-  const weeklyNeed = adjustedTarget;
-  const deficit = adjustedTarget - precipDay5 - forecastDay5;
-
-  let recommendation: 'WATER' | 'MONITOR' | 'SKIP';
-  let recommendationReason: string;
-
-  // Soil saturation guard — evaluated before deficit thresholds.
-  if (precipDay3 > 0.5) {
-    recommendation = 'SKIP';
-    recommendationReason =
-      'Soil is likely saturated from recent rainfall. No watering needed right now.';
-  } else if (deficit > 0.25) {
-    recommendation = 'WATER';
-    recommendationReason =
-      "Your lawn needs water — recent rainfall and forecast aren't enough to offset evaporation losses.";
-  } else if (deficit > 0.05) {
-    recommendation = 'MONITOR';
-    recommendationReason =
-      "You're borderline. Skip today and check again tomorrow — conditions may resolve on their own.";
-  } else {
-    recommendation = 'SKIP';
-    recommendationReason =
-      'Rain and forecast precipitation have your lawn covered. No watering needed this week.';
-  }
+  const { recommendation, recommendationReason, weeklyNeed, deficit } =
+    computeRecommendation(precipDay3, precipDay5, forecastDay5, etLoss7d, grassType, tuning);
 
   // Recommended watering day only when WATER
   let recommendedWateringDay = -1;
@@ -225,7 +268,7 @@ export const fetchPrecipitationData = async (
       p_weather_data: JSON.parse(JSON.stringify(result)),
     });
   } catch {
-    // Non-critical: don't fail the request if caching fails
+    // Non-critical
   }
 
   // Log the lookup
