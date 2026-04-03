@@ -10,7 +10,19 @@ const NavBar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
+  const [referralActive, setReferralActive] = useState(false);
   const { user, signOut } = useAuth();
+
+  useEffect(() => {
+    supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'referral_program_active')
+      .single()
+      .then(({ data }) => {
+        if (data?.value === 'true') setReferralActive(true);
+      });
+  }, []);
 
   React.useEffect(() => {
     const handleScroll = () => {
