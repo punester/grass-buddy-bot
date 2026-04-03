@@ -55,8 +55,7 @@ const Footer: React.FC = () => {
             <h3 className="text-sm font-semibold text-foreground uppercase mb-4">Contact</h3>
             <ul className="space-y-3">
               <li className="text-sm text-muted-foreground">info@thirstygrass.com</li>
-              <li className="text-sm text-muted-foreground">(555) 123-4567</li>
-              <li className="text-sm text-muted-foreground">123 Green Street<br />Plant City, CA 94123</li>
+              <li className="text-sm text-muted-foreground">110 Labs 300A Apex Dr<br />Marlborough, MA 01752</li>
             </ul>
           </div>
         </div>
