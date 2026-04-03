@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle2, Loader2 } from 'lucide-react';
+import { useSettings } from '@/contexts/SettingsContext';
 
 const Contact: React.FC = () => {
+  const { publicEmail } = useSettings();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');

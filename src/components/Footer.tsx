@@ -2,11 +2,13 @@ import React from 'react';
 import { Droplets } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 const ADMIN_EMAIL = 'admin@110labs.com';
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
   const { user } = useAuth();
+  const { publicEmail } = useSettings();
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   return (
@@ -50,7 +52,7 @@ const Footer: React.FC = () => {
           <div className="md:col-span-1">
             <h3 className="text-sm font-semibold text-foreground uppercase mb-4">Contact</h3>
             <ul className="space-y-3">
-              <li className="text-sm text-muted-foreground">info@thirstygrass.com</li>
+              <li className="text-sm text-muted-foreground">{publicEmail}</li>
               <li className="text-sm text-muted-foreground">110 Labs 300A Apex Dr<br />Marlborough, MA 01752</li>
             </ul>
           </div>
