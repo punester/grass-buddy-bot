@@ -16,6 +16,7 @@ const Index = () => {
 
   const handleZipSubmit = async (zipCode: string) => {
     setIsLoading(true);
+    setCurrentZip(zipCode);
     try {
       const data = await fetchPrecipitationData(zipCode, 'Mixed', null);
       setPrecipitationData(data);
