@@ -33,9 +33,10 @@ export interface PrecipitationData {
 
 interface PrecipitationDisplayProps {
   data: PrecipitationData;
+  zipCode?: string;
 }
 
-const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data }) => {
+const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data, zipCode }) => {
   const formatPrecipitation = (inches: number | undefined): string => {
     return (inches ?? 0).toFixed(2);
   };
