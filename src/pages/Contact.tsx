@@ -21,18 +21,29 @@ const Contact: React.FC = () => {
 
     setStatus('sending');
     try {
-      const idempotencyKey = `contact-confirm-${crypto.randomUUID()}`;
+      const submissionId = crypto.randomUUID();
       
-      const { error } = await supabase.functions.invoke('send-transactional-email', {
+      // Send confirmation to submitter
+      const { error: confirmError } = await supabase.functions.invoke('send-transactional-email', {
         body: {
           templateName: 'contact-confirmation',
           recipientEmail: email.trim(),
-          idempotencyKey,
+          idempotencyKey: `contact-confirm-${submissionId}`,
           templateData: { name: name.trim() },
         },
       });
 
-      if (error) throw error;
+      if (confirmError) throw confirmError;
+
+      // Send notification to admin
+      await supabase.functions.invoke('send-transactional-email', {
+        body: {
+          templateName: 'contact-admin-notification',
+          recipientEmail: 'admin@110labs.com',
+          idempotencyKey: `contact-admin-${submissionId}`,
+          templateData: { name: name.trim(), email: email.trim(), message: message.trim() },
+        },
+      });
       setStatus('success');
     } catch (err) {
       console.error('Contact form error:', err);
