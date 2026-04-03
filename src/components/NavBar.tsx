@@ -139,6 +139,13 @@ const NavBar: React.FC = () => {
               >
                 Contact
               </Link>
+              <Link
+                to="/pricing"
+                className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Pricing
+              </Link>
 
               {user ? (
                 <>
