@@ -70,7 +70,7 @@ const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({
       </div>
       
       <p className="text-gray-600 mb-4">
-        Receive an email <strong>only when your lawn needs watering</strong> based on real-time precipitation data for your address.
+        Get a <strong>weekly email</strong> with personalized recommendations on which days to water your grass, based on real-time weather data for your area.
       </p>
       
       <form onSubmit={handleSubmit} className="space-y-4">
