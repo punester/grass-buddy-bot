@@ -136,6 +136,13 @@ const NavBar: React.FC = () => {
 
               {user ? (
                 <>
+                  <Link
+                    to="/dashboard"
+                    className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
                   <span className="text-sm text-muted-foreground py-2 truncate">
                     {user.email}
                   </span>

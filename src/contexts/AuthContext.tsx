@@ -33,12 +33,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
 
         if (event === 'SIGNED_IN' && newSession?.user) {
-          // Don't redirect if already on a valid authenticated route
+          // Only redirect to onboarding if profile is incomplete
           const currentPath = window.location.pathname;
           if (currentPath === '/admin' || currentPath === '/dashboard' || currentPath === '/onboarding') {
             return;
           }
-          // Check profile and redirect
           setTimeout(async () => {
             const { data: profile } = await supabase
               .from('profiles')
@@ -48,9 +47,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (!profile || !profile.zip_code) {
               navigate('/onboarding');
-            } else {
-              navigate('/dashboard');
             }
+            // No longer auto-redirect to /dashboard — user stays on current page
           }, 0);
         }
       }
