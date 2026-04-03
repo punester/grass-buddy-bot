@@ -39,7 +39,11 @@ const Dashboard = () => {
         .select('zip_code, grass_type, irrigation_type')
         .eq('id', user.id)
         .single();
-      if (data) setProfile(data);
+      if (!data || !data.zip_code) {
+        navigate('/onboarding');
+        return;
+      }
+      setProfile(data);
     };
     fetchProfile();
   }, [user]);
