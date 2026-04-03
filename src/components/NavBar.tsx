@@ -170,6 +170,15 @@ const NavBar: React.FC = () => {
 
               {user ? (
                 <>
+                  {referralActive && (
+                    <Link
+                      to="/referrals"
+                      className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Refer a Friend
+                    </Link>
+                  )}
                   <Link
                     to="/dashboard"
                     className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
