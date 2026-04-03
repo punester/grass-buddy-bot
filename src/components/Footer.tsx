@@ -1,5 +1,5 @@
 import React from 'react';
-import { Droplets, GithubIcon, TwitterIcon, InstagramIcon } from 'lucide-react';
+import { Droplets } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Footer: React.FC = () => {
@@ -19,17 +19,6 @@ const Footer: React.FC = () => {
             <p className="text-sm text-muted-foreground mb-6">
               Helping homeowners maintain beautiful lawns with precision watering schedules based on real-time data.
             </p>
-            <div className="flex space-x-4">
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors duration-200">
-                <GithubIcon className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors duration-200">
-                <TwitterIcon className="w-5 h-5" />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors duration-200">
-                <InstagramIcon className="w-5 h-5" />
-              </a>
-            </div>
           </div>
           
           <div className="md:col-span-1">
