@@ -204,7 +204,9 @@ const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data, zipCo
             <EmailNotificationForm 
               address={data.address} 
               recommendation={data.recommendation}
-              recommendedWateringDay={data.forecast.recommendedWateringDay} 
+              recommendedWateringDay={data.forecast.recommendedWateringDay}
+              weatherData={data}
+              zipCode={zipCode}
             />
           </div>
         </div>
