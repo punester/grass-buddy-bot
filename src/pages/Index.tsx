@@ -114,6 +114,11 @@ const Index = () => {
                 </p>
               </div>
             </div>
+            <div className="text-center mt-10">
+              <Link to="/about" className="text-sm font-medium text-primary hover:underline transition-colors duration-200">
+                More about the numbers →
+              </Link>
+            </div>
           </div>
         </section>
         
