@@ -228,9 +228,9 @@ async function handleWebhook(req: Request): Promise<Response> {
     newEmail: payload.data.new_email,
   }
 
-  // For magiclink emails, pull weather data from user metadata (passed via OTP data)
+  // For signup + magiclink emails, pull weather data from user metadata (passed via OTP data)
   // This avoids the race condition where the profile doesn't exist yet for new signups
-  if (emailType === 'magiclink') {
+  if (emailType === 'magiclink' || emailType === 'signup') {
     const meta = payload.data.user_metadata || {}
     if (meta.recommendation) {
       templateProps.weatherData = {
