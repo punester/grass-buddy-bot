@@ -22,6 +22,7 @@ interface Profile {
   irrigation_type: string | null;
   subscription_cancel_at_period_end: boolean;
   subscription_ends_at: string | null;
+  lawn_size_acres: number | null;
 }
 
 const Dashboard = () => {
