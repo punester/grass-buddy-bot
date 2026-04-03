@@ -8,6 +8,7 @@ import AnimatedBackground from '@/components/AnimatedBackground';
 import { DropletIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import { getTrackingParam, clearTrackingParams } from '@/hooks/useTrackingParams';
 
 const GRASS_TYPES = [
   'Not Sure',
