@@ -108,7 +108,7 @@ export const MagicLinkEmail = ({
 
         <Heading style={h1}>Verify your email to continue</Heading>
         <Text style={text}>
-          Click the button below to sign in to ThirstyGrass and access your full dashboard with weekly reports.
+          View how we calculated this & access additional tools — sign in to your ThirstyGrass dashboard.
         </Text>
         <Button style={button} href={confirmationUrl}>
           Sign In to ThirstyGrass
