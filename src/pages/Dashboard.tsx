@@ -145,7 +145,7 @@ const Dashboard = () => {
 
           {/* Recommendation */}
           {weatherData ? (
-            <PrecipitationDisplay data={weatherData} />
+            <PrecipitationDisplay data={weatherData} zipCode={profile?.zip_code || undefined} />
           ) : isLoadingWeather ? (
             <div className="bg-card rounded-2xl shadow-md border border-border p-10 mb-6 text-center">
               <RefreshCw className="h-8 w-8 text-primary animate-spin mx-auto mb-3" />
