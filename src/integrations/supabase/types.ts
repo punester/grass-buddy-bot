@@ -152,11 +152,20 @@ export type Database = {
           id: string
           irrigation_type: string | null
           lawn_size_acres: number | null
+          premium_source: string | null
+          premium_until: string | null
+          referral_code: string
+          referred_by: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_cancel_at_period_end: boolean
           subscription_ends_at: string | null
           tier: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
           zip_code: string | null
         }
         Insert: {
@@ -167,11 +176,20 @@ export type Database = {
           id: string
           irrigation_type?: string | null
           lawn_size_acres?: number | null
+          premium_source?: string | null
+          premium_until?: string | null
+          referral_code?: string
+          referred_by?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_cancel_at_period_end?: boolean
           subscription_ends_at?: string | null
           tier?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           zip_code?: string | null
         }
         Update: {
@@ -182,14 +200,76 @@ export type Database = {
           id?: string
           irrigation_type?: string | null
           lawn_size_acres?: number | null
+          premium_source?: string | null
+          premium_until?: string | null
+          referral_code?: string
+          referred_by?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_cancel_at_period_end?: boolean
           subscription_ends_at?: string | null
           tier?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          counted: boolean
+          created_at: string
+          fraud_evidence: Json | null
+          fraud_suspected: boolean
+          id: string
+          referred_id: string
+          referrer_id: string
+        }
+        Insert: {
+          counted?: boolean
+          created_at?: string
+          fraud_evidence?: Json | null
+          fraud_suspected?: boolean
+          id?: string
+          referred_id: string
+          referrer_id: string
+        }
+        Update: {
+          counted?: boolean
+          created_at?: string
+          fraud_evidence?: Json | null
+          fraud_suspected?: boolean
+          id?: string
+          referred_id?: string
+          referrer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referred_id_fkey"
+            columns: ["referred_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppressed_emails: {
         Row: {
@@ -265,6 +345,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_and_upgrade_referrer: {
+        Args: { p_referrer_id: string }
+        Returns: boolean
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -273,6 +357,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      generate_referral_code: { Args: never; Returns: string }
       increment_cache_lookup: {
         Args: { p_zip_code: string }
         Returns: undefined
