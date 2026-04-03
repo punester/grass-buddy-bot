@@ -330,6 +330,7 @@ describe('/referrals page', () => {
     };
 
     vi.resetModules();
+    vi.resetModules();
     vi.doMock('@/hooks/useReferralInfo', () => ({
       useReferralInfo: () => ({
         programActive: true,
@@ -355,6 +356,7 @@ describe('/referrals page', () => {
 
   it('redirects to / when program is inactive', async () => {
     vi.resetModules();
+    vi.resetModules();
     vi.doMock('@/hooks/useReferralInfo', () => ({
       useReferralInfo: () => ({
         programActive: false,
@@ -376,6 +378,7 @@ describe('/referrals page', () => {
 
   it('shows sign-in prompt when user is not authenticated', async () => {
     mockUser = null;
+    vi.resetModules();
     vi.doMock('@/hooks/useReferralInfo', () => ({
       useReferralInfo: () => ({
         programActive: true,
@@ -397,6 +400,7 @@ describe('/referrals page', () => {
 
   it('shows share block when user is authenticated', async () => {
     mockUser = { id: userA.id, email: userA.email };
+    vi.resetModules();
     vi.doMock('@/hooks/useReferralInfo', () => ({
       useReferralInfo: () => ({
         programActive: true,
@@ -485,6 +489,7 @@ describe('Referral count & progress', () => {
     mockUser = { id: userA.id, email: userA.email };
     mockTier = { isFree: false, isPaid: true };
 
+    vi.resetModules();
     vi.doMock('@/hooks/useReferralInfo', () => ({
       useReferralInfo: () => ({
         programActive: true,
@@ -530,6 +535,7 @@ describe('Subscription status', () => {
       isPaid: profileData.tier === 'paid',
     };
 
+    vi.resetModules();
     vi.doMock('@/hooks/useReferralInfo', () => ({
       useReferralInfo: () => ({
         programActive: true,
