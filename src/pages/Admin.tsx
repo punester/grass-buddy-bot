@@ -9,6 +9,7 @@ import AdminAnalytics from '@/components/admin/AdminAnalytics';
 import AdminUsers from '@/components/admin/AdminUsers';
 import AdminBilling from '@/components/admin/AdminBilling';
 import AdminCache from '@/components/admin/AdminCache';
+import AdminPricing from '@/components/admin/AdminPricing';
 
 const ADMIN_EMAIL = 'admin@110labs.com';
 
@@ -37,16 +38,18 @@ const Admin = () => {
         <div className="container mx-auto px-4 max-w-6xl">
           <h1 className="text-2xl font-bold text-foreground mb-6">Admin Dashboard</h1>
           <Tabs defaultValue="analytics" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsList className="grid w-full grid-cols-5 mb-6">
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
               <TabsTrigger value="users">Users</TabsTrigger>
               <TabsTrigger value="billing">Billing</TabsTrigger>
               <TabsTrigger value="cache">Cache</TabsTrigger>
+              <TabsTrigger value="pricing">Pricing</TabsTrigger>
             </TabsList>
             <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
             <TabsContent value="users"><AdminUsers /></TabsContent>
             <TabsContent value="billing"><AdminBilling /></TabsContent>
             <TabsContent value="cache"><AdminCache /></TabsContent>
+            <TabsContent value="pricing"><AdminPricing /></TabsContent>
           </Tabs>
         </div>
       </main>
