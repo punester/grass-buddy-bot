@@ -17,6 +17,10 @@ const Index = () => {
     try {
       const data = await fetchPrecipitationData(zipCode);
       setPrecipitationData(data);
+      // Scroll to results after data loads
+      setTimeout(() => {
+        document.getElementById('watering-results')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       console.error('Error fetching precipitation data:', error);
     } finally {
