@@ -44,12 +44,72 @@ export type Database = {
         }
         Relationships: []
       }
+      zip_cache: {
+        Row: {
+          cached_at: string
+          lookup_count: number
+          weather_data: Json
+          zip_code: string
+        }
+        Insert: {
+          cached_at?: string
+          lookup_count?: number
+          weather_data: Json
+          zip_code: string
+        }
+        Update: {
+          cached_at?: string
+          lookup_count?: number
+          weather_data?: Json
+          zip_code?: string
+        }
+        Relationships: []
+      }
+      zip_lookup_log: {
+        Row: {
+          created_at: string
+          id: string
+          recommendation: string
+          user_id: string | null
+          zip_code: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          recommendation: string
+          user_id?: string | null
+          zip_code: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          recommendation?: string
+          user_id?: string | null
+          zip_code?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_cache_lookup: {
+        Args: { p_zip_code: string }
+        Returns: undefined
+      }
+      log_zip_lookup: {
+        Args: {
+          p_recommendation: string
+          p_user_id?: string
+          p_zip_code: string
+        }
+        Returns: undefined
+      }
+      upsert_zip_cache: {
+        Args: { p_weather_data: Json; p_zip_code: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
