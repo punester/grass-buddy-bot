@@ -31,7 +31,7 @@ const SubscriptionCancelledEmail = ({ name, endsAt }: SubscriptionCancelledProps
         <Text style={text}>
           If you change your mind, you can resubscribe anytime from your dashboard.
         </Text>
-        <Button style={button} href="https://grass-buddy-bot.lovable.app/pricing">
+        <Button style={button} href="https://thirstygrass.com/pricing">
           View Plans
         </Button>
         <Text style={footer}>We hope to see you back soon.{'\n'}The {SITE_NAME} Team</Text>

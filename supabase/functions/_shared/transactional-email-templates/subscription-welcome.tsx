@@ -30,7 +30,7 @@ const SubscriptionWelcomeEmail = ({ name }: SubscriptionWelcomeProps) => (
         <Text style={text}>
           Your lawn is about to get a lot happier. We'll keep you posted with smart, data-driven watering advice all season long.
         </Text>
-        <Button style={button} href="https://grass-buddy-bot.lovable.app/dashboard">
+        <Button style={button} href="https://thirstygrass.com/dashboard">
           Go to your Dashboard
         </Button>
         <Text style={footer}>Thanks for supporting {SITE_NAME}!{'\n'}The {SITE_NAME} Team</Text>
