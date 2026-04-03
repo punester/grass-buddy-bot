@@ -12,9 +12,11 @@ import { fetchPrecipitationData } from '@/utils/weatherApi';
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [precipitationData, setPrecipitationData] = useState<PrecipitationData | null>(null);
+  const [currentZip, setCurrentZip] = useState('');
 
   const handleZipSubmit = async (zipCode: string) => {
     setIsLoading(true);
+    setCurrentZip(zipCode);
     try {
       const data = await fetchPrecipitationData(zipCode, 'Mixed', null);
       setPrecipitationData(data);
@@ -70,7 +72,7 @@ const Index = () => {
         {/* Precipitation Display Section */}
         {precipitationData && (
           <section id="watering-results" className="py-12 px-6 max-w-5xl mx-auto">
-            <PrecipitationDisplay data={precipitationData} />
+            <PrecipitationDisplay data={precipitationData} zipCode={currentZip} />
           </section>
         )}
         

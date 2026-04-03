@@ -33,9 +33,10 @@ export interface PrecipitationData {
 
 interface PrecipitationDisplayProps {
   data: PrecipitationData;
+  zipCode?: string;
 }
 
-const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data }) => {
+const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data, zipCode }) => {
   const formatPrecipitation = (inches: number | undefined): string => {
     return (inches ?? 0).toFixed(2);
   };
@@ -203,7 +204,9 @@ const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data }) => 
             <EmailNotificationForm 
               address={data.address} 
               recommendation={data.recommendation}
-              recommendedWateringDay={data.forecast.recommendedWateringDay} 
+              recommendedWateringDay={data.forecast.recommendedWateringDay}
+              weatherData={data}
+              zipCode={zipCode}
             />
           </div>
         </div>
