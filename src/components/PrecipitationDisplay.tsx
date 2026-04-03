@@ -197,11 +197,11 @@ const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data }) => 
             <div className="bg-primary/5 rounded-lg p-4">
               <h4 className="font-medium text-primary mb-2">How We Determine Watering Needs:</h4>
               <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
-                <li>We analyze the past 5 days of precipitation data</li>
-                <li>We factor in the forecast for the next 5 days</li>
-                <li>We account for evapotranspiration (ET) moisture loss over 7 days</li>
-                <li>We adjust for your grass type's water requirements</li>
-                <li>We calculate the optimal watering day based on expected rainfall</li>
+                <li>Past 5 days of precipitation: {formatPrecipitation(data.precipitation.day5)}" received</li>
+                <li>Next 5 days forecast: {formatPrecipitation(data.forecast.day5)}" expected</li>
+                <li>Evapotranspiration loss (7 days): {formatPrecipitation(data.etLoss7d)}" lost to evaporation</li>
+                <li>Weekly water need for {data.grassType} grass: {formatPrecipitation(data.weeklyNeed)}"</li>
+                <li>Calculated deficit: {formatPrecipitation(data.deficit)}" ({data.deficit > 0.5 ? 'WATER if > 0.5"' : data.deficit < 0 ? 'SKIP if < 0"' : 'MONITOR'})</li>
               </ul>
             </div>
           </Card>
