@@ -18,6 +18,7 @@ import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
+import Referrals from "./pages/Referrals";
 import { useTrackingParams } from "@/hooks/useTrackingParams";
 
 const queryClient = new QueryClient();
