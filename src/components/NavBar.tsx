@@ -65,6 +65,12 @@ const NavBar: React.FC = () => {
             >
               Contact
             </Link>
+            <Link
+              to="/pricing"
+              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
+            >
+              Pricing
+            </Link>
 
             {user ? (
               <div className="flex items-center space-x-4">
