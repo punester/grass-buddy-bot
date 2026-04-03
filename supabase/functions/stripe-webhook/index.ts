@@ -102,6 +102,13 @@ serve(async (req) => {
         .single();
 
       if (profile) {
+        // Get email before downgrading
+        const { data: cancelProfile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", profile.id)
+          .single();
+
         await supabase
           .from("profiles")
           .update({
@@ -113,6 +120,13 @@ serve(async (req) => {
           .eq("id", profile.id);
 
         console.log(`[stripe-webhook] Downgraded user ${profile.id} to free`);
+
+        // Send cancellation email
+        if (cancelProfile?.email) {
+          await sendEmail(supabase, 'subscription-cancelled', cancelProfile.email, `sub-cancel-${subscription.id}`, {
+            endsAt: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          });
+        }
       }
     }
   } catch (err) {
