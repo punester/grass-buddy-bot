@@ -70,6 +70,58 @@ deficit = adjustedTarget − rain (past 5 days) − forecast (5 days)
             </p>
           </section>
 
+          {/* How the recommendation works — step by step */}
+          <section className="mb-12">
+            <h2 className="text-2xl font-semibold text-foreground mb-6">How your recommendation is calculated</h2>
+
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Step 1: How thirsty is your specific lawn?</h3>
+                <p className="text-muted-foreground leading-relaxed mb-3">
+                  We start with how much water evaporated from the ground this week (that's etLoss7d — basically how hard the sun and wind have been working). Then we adjust it for your grass type:
+                </p>
+                <ul className="list-disc pl-6 space-y-1 text-muted-foreground leading-relaxed mb-3">
+                  <li><strong>Cool-season grass</strong> (fescue, bluegrass) needs more water, so we multiply by 1.25</li>
+                  <li><strong>Warm-season grass</strong> (bermuda, zoysia) is more drought-tolerant, so we multiply by 0.75</li>
+                  <li><strong>Mixed/unknown</strong> stays as-is</li>
+                </ul>
+                <p className="text-muted-foreground leading-relaxed">
+                  This gives us your lawn's actual water target for the week.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Step 2: Soil saturation check (evaluated first, overrides everything)</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  If it rained more than half an inch in the last 3 days, we say <strong>SKIP</strong> immediately — no further math needed. The ground is still wet enough that watering would be wasteful regardless of anything else.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Step 3: Calculate the deficit</h3>
+                <p className="text-muted-foreground leading-relaxed mb-3">
+                  Take your lawn's water target, then subtract:
+                </p>
+                <ul className="list-disc pl-6 space-y-1 text-muted-foreground leading-relaxed mb-3">
+                  <li>Rain that already fell in the past 5 days</li>
+                  <li>Rain that's forecast to fall in the next 5 days</li>
+                </ul>
+                <p className="text-muted-foreground leading-relaxed">
+                  The result is how "short" your lawn is on water — the deficit.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Step 4: Make the call</h3>
+                <ul className="list-disc pl-6 space-y-1 text-muted-foreground leading-relaxed">
+                  <li>If the deficit is more than <strong>0.25 inches</strong> → <strong>WATER</strong> (meaningfully behind, act now)</li>
+                  <li>If it's between <strong>0.05 and 0.25</strong> → <strong>MONITOR</strong> (borderline, check tomorrow)</li>
+                  <li>If it's below <strong>0.05</strong> → <strong>SKIP</strong> (rain has covered it)</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
           {/* Section 3 — Open-Meteo */}
           <section className="mb-12">
             <h2 className="text-2xl font-semibold text-foreground mb-4">Our weather data source: Open-Meteo</h2>
