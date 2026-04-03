@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Menu, X, Droplets } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import SignInModal from './SignInModal';
@@ -47,23 +48,23 @@ const NavBar: React.FC = () => {
           {/* Desktop navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <a
-              href="#how-it-works"
+              href="/#how-it-works"
               className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
             >
               How It Works
             </a>
-            <a
-              href="#about"
+            <Link
+              to="/about"
               className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
             >
               About
-            </a>
-            <a
-              href="#contact"
+            </Link>
+            <Link
+              to="/contact"
               className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
             >
               Contact
-            </a>
+            </Link>
 
             {user ? (
               <div className="flex items-center space-x-4">
@@ -106,26 +107,26 @@ const NavBar: React.FC = () => {
           <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md shadow-md border-t border-border animate-fade-in">
             <div className="container mx-auto py-4 px-6 flex flex-col space-y-4">
               <a
-                href="#how-it-works"
+                href="/#how-it-works"
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 How It Works
               </a>
-              <a
-                href="#about"
+              <Link
+                to="/about"
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 About
-              </a>
-              <a
-                href="#contact"
+              </Link>
+              <Link
+                to="/contact"
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Contact
-              </a>
+              </Link>
 
               {user ? (
                 <>
