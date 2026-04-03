@@ -272,6 +272,9 @@ const Dashboard = () => {
               onUpdate={fetchProfile}
             />
           )}
+
+          {/* User Feedback */}
+          <DashboardFeedback profile={profile} weatherData={weatherData} />
         </div>
       </main>
       <Footer />
