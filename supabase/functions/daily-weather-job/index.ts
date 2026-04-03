@@ -564,12 +564,37 @@ Deno.serve(async (req) => {
           }),
         });
 
+        const resendBody = await resendRes.json().catch(() => ({}));
         if (resendRes.ok) {
           sent++;
+          // Log successful send
+          await supabase.from("email_send_log").insert({
+            template_name: "weekly-digest",
+            recipient_email: profile.email,
+            status: "sent",
+            message_id: resendBody?.id || null,
+            metadata: {
+              recommendation: personal.recommendation,
+              zip_code: profile.zip_code,
+              subject,
+              rain_5d: cached.rain_5d,
+              forecast_5d: cached.forecast_5d,
+              et_loss_7d: cached.et_loss_7d,
+              deficit: personal.deficit,
+              lawn_size_acres: profile.lawn_size_acres,
+            },
+          });
         } else {
-          const errBody = await resendRes.text();
-          console.error(`Resend error for ${profile.email}: ${errBody}`);
+          const errText = JSON.stringify(resendBody);
+          console.error(`Resend error for ${profile.email}: ${errText}`);
           emailErrors++;
+          await supabase.from("email_send_log").insert({
+            template_name: "weekly-digest",
+            recipient_email: profile.email,
+            status: "failed",
+            error_message: errText,
+            metadata: { recommendation: personal.recommendation, zip_code: profile.zip_code },
+          });
         }
 
         // Rate limit protection

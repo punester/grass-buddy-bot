@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Mail, RefreshCw, Send, Clock, Database, Users } from 'lucide-react';
+import AdminEmailLog from './AdminEmailLog';
 
 const AdminEmailSystem = () => {
   const [loading, setLoading] = useState(false);
@@ -178,6 +179,7 @@ const AdminEmailSystem = () => {
           </p>
         </CardContent>
       </Card>
+      <AdminEmailLog />
     </div>
   );
 };
