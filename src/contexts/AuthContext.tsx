@@ -33,9 +33,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
 
         if (event === 'SIGNED_IN' && newSession?.user) {
-          // Only redirect to onboarding if profile is incomplete
           const currentPath = window.location.pathname;
-          if (currentPath === '/admin' || currentPath === '/dashboard' || currentPath === '/onboarding') {
+          if (currentPath === '/admin' || currentPath === '/onboarding') {
             return;
           }
           setTimeout(async () => {
@@ -46,9 +45,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .single();
 
             if (!profile || !profile.zip_code) {
-              navigate('/onboarding');
+              // Try to sync zip_code from user metadata
+              const metaZip = newSession.user.user_metadata?.zip_code;
+              if (metaZip && profile) {
+                await supabase
+                  .from('profiles')
+                  .update({ zip_code: metaZip })
+                  .eq('id', newSession.user.id);
+                // ZIP synced, stay on current page or go to dashboard
+                if (currentPath !== '/dashboard') {
+                  navigate('/dashboard');
+                }
+              } else {
+                navigate('/onboarding');
+              }
             }
-            // No longer auto-redirect to /dashboard — user stays on current page
+            // If zip_code exists, stay on current page
           }, 0);
         }
       }

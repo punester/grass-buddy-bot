@@ -49,6 +49,7 @@ const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({
         email: email.trim(),
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: { zip_code: zipCode },
         },
       });
 

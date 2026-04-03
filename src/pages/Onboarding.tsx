@@ -27,7 +27,7 @@ const IRRIGATION_TYPES = [
 const Onboarding = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [zipCode, setZipCode] = useState('');
+  const [zipCode, setZipCode] = useState(user?.user_metadata?.zip_code || '');
   const [grassType, setGrassType] = useState('');
   const [irrigationType, setIrrigationType] = useState('');
   const [zipError, setZipError] = useState('');
