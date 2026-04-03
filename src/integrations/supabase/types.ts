@@ -298,19 +298,40 @@ export type Database = {
       zip_cache: {
         Row: {
           cached_at: string
+          deficit: number | null
+          et_loss_7d: number | null
+          forecast_5d: number | null
+          last_updated: string | null
           lookup_count: number
+          rain_5d: number | null
+          recommendation: string | null
+          recommendation_reason: string | null
           weather_data: Json
           zip_code: string
         }
         Insert: {
           cached_at?: string
+          deficit?: number | null
+          et_loss_7d?: number | null
+          forecast_5d?: number | null
+          last_updated?: string | null
           lookup_count?: number
+          rain_5d?: number | null
+          recommendation?: string | null
+          recommendation_reason?: string | null
           weather_data: Json
           zip_code: string
         }
         Update: {
           cached_at?: string
+          deficit?: number | null
+          et_loss_7d?: number | null
+          forecast_5d?: number | null
+          last_updated?: string | null
           lookup_count?: number
+          rain_5d?: number | null
+          recommendation?: string | null
+          recommendation_reason?: string | null
           weather_data?: Json
           zip_code?: string
         }

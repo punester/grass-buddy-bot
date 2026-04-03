@@ -12,6 +12,7 @@ import AdminCache from '@/components/admin/AdminCache';
 import AdminPricing from '@/components/admin/AdminPricing';
 import AdminTuning from '@/components/admin/AdminTuning';
 import AdminReferrals from '@/components/admin/AdminReferrals';
+import AdminEmailSystem from '@/components/admin/AdminEmailSystem';
 
 const ADMIN_EMAIL = 'admin@110labs.com';
 
@@ -36,11 +37,12 @@ const Admin = () => {
         <div className="container mx-auto px-4 max-w-6xl">
           <h1 className="text-2xl font-bold text-foreground mb-6">ThirstyGrass Admin</h1>
           <Tabs defaultValue="analytics" className="w-full">
-            <TabsList className="grid w-full grid-cols-7 mb-6">
+            <TabsList className="grid w-full grid-cols-8 mb-6">
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
               <TabsTrigger value="users">Users</TabsTrigger>
               <TabsTrigger value="referrals">Referrals</TabsTrigger>
               <TabsTrigger value="billing">Billing</TabsTrigger>
+              <TabsTrigger value="email">Email</TabsTrigger>
               <TabsTrigger value="cache">Cache</TabsTrigger>
               <TabsTrigger value="pricing">Pricing</TabsTrigger>
               <TabsTrigger value="tuning">Tuning</TabsTrigger>
@@ -49,6 +51,7 @@ const Admin = () => {
             <TabsContent value="users"><AdminUsers /></TabsContent>
             <TabsContent value="referrals"><AdminReferrals /></TabsContent>
             <TabsContent value="billing"><AdminBilling /></TabsContent>
+            <TabsContent value="email"><AdminEmailSystem /></TabsContent>
             <TabsContent value="cache"><AdminCache /></TabsContent>
             <TabsContent value="pricing"><AdminPricing /></TabsContent>
             <TabsContent value="tuning">
