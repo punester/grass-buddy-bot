@@ -74,7 +74,7 @@ export const fetchPrecipitationData = async (
   const forecastDay5 = sumSlice(precip, todayIndex, todayIndex + 5);
 
   // ET loss for past 7 days
-  const etLoss7d = sumSlice(et, todayIndex - 7, todayIndex);
+const etLoss7d = sumSlice(et, todayIndex - 7, todayIndex) / 25.4;
 
   // Step 3 — 3-state recommendation logic
   const grassMultiplier =
