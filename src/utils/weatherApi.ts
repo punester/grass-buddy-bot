@@ -1,4 +1,5 @@
 import { PrecipitationData } from '@/components/PrecipitationDisplay';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GeoResult {
   latitude: number;
@@ -15,13 +16,80 @@ interface OpenMeteoDaily {
 
 /**
  * Fetches real precipitation data from Open-Meteo for a given US ZIP code.
+ * Uses zip_cache to avoid redundant API calls (24h TTL).
+ * Logs each lookup to zip_lookup_log.
  * @param zipCode - 5-digit US ZIP code
  * @param grassType - Optional grass type for recommendation tuning
+ * @param userId - Optional user ID for logging (null for anonymous)
  */
 export const fetchPrecipitationData = async (
   zipCode: string,
-  grassType: string = 'Mixed'
+  grassType: string = 'Mixed',
+  userId?: string | null
 ): Promise<PrecipitationData> => {
+  // Check cache first
+  try {
+    const { data: cached } = await supabase
+      .from('zip_cache')
+      .select('weather_data, cached_at')
+      .eq('zip_code', zipCode)
+      .single();
+
+    if (cached) {
+      const cachedAt = new Date(cached.cached_at);
+      const now = new Date();
+      const hoursSinceCached = (now.getTime() - cachedAt.getTime()) / (1000 * 60 * 60);
+
+      if (hoursSinceCached < 24) {
+        // Cache hit — increment lookup count
+        await supabase.rpc('increment_cache_lookup', { p_zip_code: zipCode });
+
+        const cachedData = cached.weather_data as unknown as PrecipitationData;
+        
+        // Re-compute recommendation with current grassType
+        const grassMultiplier =
+          grassType === 'Cool-Season' ? 1.25 :
+          grassType === 'Warm-Season' ? 0.75 : 1.0;
+        const weeklyNeed = 1.0 * grassMultiplier;
+        const deficit = weeklyNeed + cachedData.etLoss7d - cachedData.precipitation.day5 - cachedData.forecast.day5;
+
+        let recommendation: 'WATER' | 'MONITOR' | 'SKIP';
+        let recommendationReason: string;
+
+        if (deficit > 0.5) {
+          recommendation = 'WATER';
+          recommendationReason = "Your lawn needs water — rainfall and forecast aren't enough to cover evaporation losses.";
+        } else if (deficit > 0) {
+          recommendation = 'MONITOR';
+          recommendationReason = "You're borderline. Skip today and check again tomorrow.";
+        } else {
+          recommendation = 'SKIP';
+          recommendationReason = 'Rain has you covered. No watering needed this week.';
+        }
+
+        const result: PrecipitationData = {
+          ...cachedData,
+          recommendation,
+          recommendationReason,
+          weeklyNeed,
+          deficit,
+          grassType,
+        };
+
+        // Log the lookup
+        await supabase.rpc('log_zip_lookup', {
+          p_zip_code: zipCode,
+          p_recommendation: recommendation,
+          p_user_id: userId ?? null,
+        });
+
+        return result;
+      }
+    }
+  } catch {
+    // Cache miss or error — proceed to fetch
+  }
+
   // Step 1 — ZIP to coordinates
   const geoRes = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode)}&count=1&country=US&format=json`
@@ -74,7 +142,7 @@ export const fetchPrecipitationData = async (
   const forecastDay5 = sumSlice(precip, todayIndex, todayIndex + 5);
 
   // ET loss for past 7 days
-const etLoss7d = sumSlice(et, todayIndex - 7, todayIndex) / 25.4;
+  const etLoss7d = sumSlice(et, todayIndex - 7, todayIndex) / 25.4;
 
   // Step 3 — 3-state recommendation logic
   const grassMultiplier =
@@ -113,7 +181,7 @@ const etLoss7d = sumSlice(et, todayIndex - 7, todayIndex) / 25.4;
     }
   }
 
-  return {
+  const result: PrecipitationData = {
     address: `${locationLabel} (${zipCode})`,
     precipitation: {
       day1: precipDay1,
@@ -134,4 +202,27 @@ const etLoss7d = sumSlice(et, todayIndex - 7, todayIndex) / 25.4;
     deficit,
     grassType,
   };
+
+  // Cache the result
+  try {
+    await supabase.rpc('upsert_zip_cache', {
+      p_zip_code: zipCode,
+      p_weather_data: result as unknown as Record<string, unknown>,
+    });
+  } catch {
+    // Non-critical: don't fail the request if caching fails
+  }
+
+  // Log the lookup
+  try {
+    await supabase.rpc('log_zip_lookup', {
+      p_zip_code: zipCode,
+      p_recommendation: recommendation,
+      p_user_id: userId ?? null,
+    });
+  } catch {
+    // Non-critical
+  }
+
+  return result;
 };
