@@ -124,7 +124,7 @@ const Contact: React.FC = () => {
                 {status === 'error' && (
                   <p className="text-sm text-destructive">
                     Something went wrong. Try emailing us directly at{' '}
-                    <a href="mailto:admin@110labs.com" className="underline">admin@110labs.com</a>
+                    <a href={`mailto:${publicEmail}`} className="underline">{publicEmail}</a>
                   </p>
                 )}
 
