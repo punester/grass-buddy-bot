@@ -40,8 +40,8 @@ interface PrecipitationDisplayProps {
 }
 
 const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data }) => {
-  const formatPrecipitation = (inches: number): string => {
-    return inches.toFixed(2);
+  const formatPrecipitation = (inches: number | undefined): string => {
+    return (inches ?? 0).toFixed(2);
   };
 
   const getRecommendationText = (): string => {
