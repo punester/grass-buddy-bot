@@ -78,7 +78,33 @@ const Onboarding = () => {
     if (updateError) {
       toast.error('Something went wrong. Please try again.');
       console.error('Profile update error:', updateError);
+      setIsSubmitting(false);
     } else {
+      // Process referral and UTM params in background
+      try {
+        const encoder = new TextEncoder();
+        const fingerprintData = `${navigator.userAgent}${screen.width}${screen.height}${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+        const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(fingerprintData));
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const deviceFingerprint = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        await supabase.functions.invoke('process-referral', {
+          body: {
+            referral_code: getTrackingParam('ref'),
+            utm_source: getTrackingParam('utm_source'),
+            utm_medium: getTrackingParam('utm_medium'),
+            utm_campaign: getTrackingParam('utm_campaign'),
+            utm_content: getTrackingParam('utm_content'),
+            utm_term: getTrackingParam('utm_term'),
+            device_fingerprint: deviceFingerprint,
+            user_agent: navigator.userAgent,
+          },
+        });
+        clearTrackingParams();
+      } catch (e) {
+        console.error('Referral processing error:', e);
+      }
+      setIsSubmitting(false);
       navigate('/dashboard');
     }
   };
