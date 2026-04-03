@@ -218,7 +218,7 @@ async function handleWebhook(req: Request): Promise<Response> {
   }
 
   // Build template props from payload.data (HookData structure)
-  const templateProps = {
+  const templateProps: Record<string, any> = {
     siteName: SITE_NAME,
     siteUrl: `https://${ROOT_DOMAIN}`,
     recipient: payload.data.email,
@@ -226,6 +226,38 @@ async function handleWebhook(req: Request): Promise<Response> {
     token: payload.data.token,
     email: payload.data.email,
     newEmail: payload.data.new_email,
+  }
+
+  // For magiclink emails, look up weather data from zip_cache
+  if (emailType === 'magiclink') {
+    try {
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      )
+      // Find user's zip from their profile
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('zip_code')
+        .eq('email', payload.data.email)
+        .single()
+
+      if (profile?.zip_code) {
+        const { data: cache } = await supabaseAdmin
+          .from('zip_cache')
+          .select('weather_data')
+          .eq('zip_code', profile.zip_code)
+          .single()
+
+        if (cache?.weather_data) {
+          templateProps.weatherData = cache.weather_data
+          console.log('Attached weather data to magiclink email', { zip: profile.zip_code })
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch weather data for magiclink email', err)
+      // Continue without weather data - email still works
+    }
   }
 
   // Render React Email to HTML and plain text
