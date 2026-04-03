@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import AnimatedBackground from '@/components/AnimatedBackground';
@@ -11,8 +11,10 @@ import PrecipitationDisplay, { PrecipitationData } from '@/components/Precipitat
 import LockedFeatureCard from '@/components/LockedFeatureCard';
 import DashboardFeedback from '@/components/DashboardFeedback';
 import SubscriptionManager from '@/components/SubscriptionManager';
+import ReferralShareBlock from '@/components/ReferralShareBlock';
 import { useUserTier } from '@/hooks/useUserTier';
-import { RefreshCw, Pencil, MapPin, Leaf, Droplets, Ruler, Timer } from 'lucide-react';
+import { useReferralInfo } from '@/hooks/useReferralInfo';
+import { RefreshCw, Pencil, MapPin, Leaf, Droplets, Ruler, Timer, Gift, CreditCard } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
