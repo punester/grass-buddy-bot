@@ -30,6 +30,7 @@ const Onboarding = () => {
   const [zipCode, setZipCode] = useState(user?.user_metadata?.zip_code || '');
   const [grassType, setGrassType] = useState('');
   const [irrigationType, setIrrigationType] = useState('');
+  const [lawnSize, setLawnSize] = useState('');
   const [zipError, setZipError] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
