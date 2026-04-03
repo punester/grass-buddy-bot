@@ -1,3 +1,4 @@
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,8 +18,14 @@ import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
+import { useTrackingParams } from "@/hooks/useTrackingParams";
 
 const queryClient = new QueryClient();
+
+const TrackingParamsCapture = ({ children }: { children: React.ReactNode }) => {
+  useTrackingParams();
+  return <>{children}</>;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -26,6 +33,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <TrackingParamsCapture>
         <AuthProvider>
           <SettingsProvider>
             <Routes>
@@ -45,6 +53,7 @@ const App = () => (
             </Routes>
           </SettingsProvider>
         </AuthProvider>
+        </TrackingParamsCapture>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

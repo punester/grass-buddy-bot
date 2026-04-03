@@ -74,6 +74,8 @@ serve(async (req) => {
           stripe_subscription_id: subscriptionId,
           subscription_ends_at: endsAt,
           subscription_cancel_at_period_end: false,
+          premium_source: "stripe",
+          premium_until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
         })
         .eq("id", userId);
 
