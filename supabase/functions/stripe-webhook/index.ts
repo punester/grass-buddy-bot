@@ -78,6 +78,17 @@ serve(async (req) => {
         .eq("id", userId);
 
       console.log(`[stripe-webhook] Upgraded user ${userId} to paid`);
+
+      // Send welcome email
+      const { data: upgradedProfile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", userId)
+        .single();
+
+      if (upgradedProfile?.email) {
+        await sendEmail(supabase, 'subscription-welcome', upgradedProfile.email, `sub-welcome-${subscriptionId}`);
+      }
     }
 
     if (event.type === "customer.subscription.deleted") {
