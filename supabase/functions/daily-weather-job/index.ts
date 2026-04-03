@@ -484,7 +484,7 @@ Deno.serve(async (req) => {
 
     // ── STEP 7: Send emails ──────────────────────────
     const tip = getTipOfTheWeek();
-    const dashboardUrl = "https://thirstygrass.com/dashboard";
+    const fallbackDashboardUrl = "https://thirstygrass.com/dashboard";
     let sent = 0;
     let emailErrors = 0;
     const subjectMap: Record<string, string> = {
@@ -498,7 +498,6 @@ Deno.serve(async (req) => {
         // Get cached ZIP data
         let cached = zipCache.get(profile.zip_code);
         if (!cached) {
-          // If not in memory (shouldn't happen), fetch from DB
           const { data: row } = await supabase
             .from("zip_cache")
             .select("rain_5d, forecast_5d, et_loss_7d, deficit, recommendation, recommendation_reason")
@@ -524,6 +523,25 @@ Deno.serve(async (req) => {
         const personal = personalizeForUser(cached, profile.grass_type, tuning);
         const narrative = generateNarrative(cached);
         const unsubscribeUrl = `https://thirstygrass.com/email-unsubscribe?user_id=${profile.id}`;
+
+        // Generate magic link for one-click login (24h expiry)
+        let dashboardUrl = fallbackDashboardUrl;
+        try {
+          const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+            type: "magiclink",
+            email: profile.email,
+            options: {
+              redirectTo: "https://thirstygrass.com/dashboard",
+            },
+          });
+          if (linkError) {
+            console.warn(`Magic link failed for ${profile.email}: ${linkError.message}`);
+          } else if (linkData?.properties?.action_link) {
+            dashboardUrl = linkData.properties.action_link;
+          }
+        } catch (linkErr) {
+          console.warn(`Magic link error for ${profile.email}:`, linkErr);
+        }
 
         const emailHtml = buildEmailHtml(
           cached, personal, narrative, tip,
