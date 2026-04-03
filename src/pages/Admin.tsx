@@ -36,9 +36,10 @@ const Admin = () => {
         <div className="container mx-auto px-4 max-w-6xl">
           <h1 className="text-2xl font-bold text-foreground mb-6">ThirstyGrass Admin</h1>
           <Tabs defaultValue="analytics" className="w-full">
-            <TabsList className="grid w-full grid-cols-6 mb-6">
+            <TabsList className="grid w-full grid-cols-7 mb-6">
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
               <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="referrals">Referrals</TabsTrigger>
               <TabsTrigger value="billing">Billing</TabsTrigger>
               <TabsTrigger value="cache">Cache</TabsTrigger>
               <TabsTrigger value="pricing">Pricing</TabsTrigger>
@@ -46,6 +47,7 @@ const Admin = () => {
             </TabsList>
             <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
             <TabsContent value="users"><AdminUsers /></TabsContent>
+            <TabsContent value="referrals"><AdminReferrals /></TabsContent>
             <TabsContent value="billing"><AdminBilling /></TabsContent>
             <TabsContent value="cache"><AdminCache /></TabsContent>
             <TabsContent value="pricing"><AdminPricing /></TabsContent>
