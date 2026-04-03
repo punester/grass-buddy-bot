@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchPrecipitationData } from '@/utils/weatherApi';
 import PrecipitationDisplay, { PrecipitationData } from '@/components/PrecipitationDisplay';
 import LockedFeatureCard from '@/components/LockedFeatureCard';
+import DashboardFeedback from '@/components/DashboardFeedback';
 import SubscriptionManager from '@/components/SubscriptionManager';
 import { useUserTier } from '@/hooks/useUserTier';
 import { RefreshCw, Pencil, MapPin, Leaf, Droplets } from 'lucide-react';
@@ -271,6 +272,9 @@ const Dashboard = () => {
               onUpdate={fetchProfile}
             />
           )}
+
+          {/* User Feedback */}
+          <DashboardFeedback profile={profile} weatherData={weatherData} />
         </div>
       </main>
       <Footer />

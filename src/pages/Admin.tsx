@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import NavBar from '@/components/NavBar';
@@ -10,6 +10,7 @@ import AdminUsers from '@/components/admin/AdminUsers';
 import AdminBilling from '@/components/admin/AdminBilling';
 import AdminCache from '@/components/admin/AdminCache';
 import AdminPricing from '@/components/admin/AdminPricing';
+import AdminTuning from '@/components/admin/AdminTuning';
 
 const ADMIN_EMAIL = 'admin@110labs.com';
 
@@ -19,12 +20,8 @@ const Admin = () => {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) {
+    if (!user || user.email !== ADMIN_EMAIL) {
       navigate('/');
-      return;
-    }
-    if (user.email !== ADMIN_EMAIL) {
-      navigate('/dashboard');
     }
   }, [user, loading, navigate]);
 
@@ -36,20 +33,26 @@ const Admin = () => {
       <NavBar />
       <main className="flex-1 pt-28 pb-16">
         <div className="container mx-auto px-4 max-w-6xl">
-          <h1 className="text-2xl font-bold text-foreground mb-6">Admin Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-6">ThirstyGrass Admin</h1>
           <Tabs defaultValue="analytics" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-6">
+            <TabsList className="grid w-full grid-cols-6 mb-6">
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
               <TabsTrigger value="users">Users</TabsTrigger>
               <TabsTrigger value="billing">Billing</TabsTrigger>
               <TabsTrigger value="cache">Cache</TabsTrigger>
               <TabsTrigger value="pricing">Pricing</TabsTrigger>
+              <TabsTrigger value="tuning">Tuning</TabsTrigger>
             </TabsList>
             <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
             <TabsContent value="users"><AdminUsers /></TabsContent>
             <TabsContent value="billing"><AdminBilling /></TabsContent>
             <TabsContent value="cache"><AdminCache /></TabsContent>
             <TabsContent value="pricing"><AdminPricing /></TabsContent>
+            <TabsContent value="tuning">
+              <div className="max-w-[600px] mx-auto">
+                <AdminTuning />
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       </main>
