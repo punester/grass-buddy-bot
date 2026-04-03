@@ -68,7 +68,8 @@ const Onboarding = () => {
         zip_code: zipCode.trim(),
         grass_type: grassType || null,
         irrigation_type: irrigationType || null,
-      })
+        lawn_size_acres: lawnSize ? parseFloat(lawnSize) : null,
+      } as any)
       .eq('id', user.id);
 
     setIsSubmitting(false);
