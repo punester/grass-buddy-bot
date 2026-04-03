@@ -68,6 +68,20 @@ const AdminUsers = () => {
     }
   };
 
+  const deleteUser = async (id: string, email: string | null) => {
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id);
+    if (error) {
+      toast.error('Failed to delete user: ' + error.message);
+    } else {
+      toast.success(`Deleted ${email || 'user'}`);
+      setProfiles(prev => prev.filter(p => p.id !== id));
+      if (expandedId === id) setExpandedId(null);
+    }
+  };
+
   const filtered = profiles.filter(p => {
     const matchesSearch =
       !search ||
