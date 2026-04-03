@@ -12,7 +12,7 @@ import LockedFeatureCard from '@/components/LockedFeatureCard';
 import DashboardFeedback from '@/components/DashboardFeedback';
 import SubscriptionManager from '@/components/SubscriptionManager';
 import { useUserTier } from '@/hooks/useUserTier';
-import { RefreshCw, Pencil, MapPin, Leaf, Droplets } from 'lucide-react';
+import { RefreshCw, Pencil, MapPin, Leaf, Droplets, Ruler, Timer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -22,6 +22,7 @@ interface Profile {
   irrigation_type: string | null;
   subscription_cancel_at_period_end: boolean;
   subscription_ends_at: string | null;
+  lawn_size_acres: number | null;
 }
 
 const Dashboard = () => {
@@ -55,7 +56,7 @@ const Dashboard = () => {
     if (!user) return;
     const { data } = await supabase
       .from('profiles')
-      .select('zip_code, grass_type, irrigation_type, subscription_cancel_at_period_end, subscription_ends_at')
+      .select('zip_code, grass_type, irrigation_type, subscription_cancel_at_period_end, subscription_ends_at, lawn_size_acres')
       .eq('id', user.id)
       .single();
     if (!data || !data.zip_code) {
@@ -164,6 +165,40 @@ const Dashboard = () => {
             </div>
           ) : null}
 
+          {/* How Long to Water */}
+          {weatherData && (
+            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Timer className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">How Long to Water</h2>
+              </div>
+              {weatherData.recommendation === 'WATER' && profile?.lawn_size_acres ? (
+                (() => {
+                  const lawnSqFt = profile.lawn_size_acres * 43560;
+                  const gallonsNeeded = weatherData.deficit * lawnSqFt * 0.623;
+                  const minutesToWater = Math.ceil(gallonsNeeded / 2);
+                  return (
+                    <div className="text-center py-4">
+                      <p className="text-4xl font-bold text-primary">{minutesToWater} min</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Based on your {profile.lawn_size_acres} acre lawn at 2 GPM flow rate
+                      </p>
+                    </div>
+                  );
+                })()
+              ) : weatherData.recommendation !== 'WATER' ? (
+                <p className="text-sm text-muted-foreground">No watering needed today</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Add your lawn size in your profile to see watering duration.{' '}
+                  <button onClick={() => navigate('/onboarding')} className="text-primary hover:underline">
+                    Update profile
+                  </button>
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Daily SMS Alerts — gated */}
           {isFree ? (
             <LockedFeatureCard
@@ -215,7 +250,7 @@ const Dashboard = () => {
                   Edit
                 </button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
                     <MapPin className="h-4 w-4 text-primary" />
@@ -241,6 +276,15 @@ const Dashboard = () => {
                   <div>
                     <p className="text-xs text-muted-foreground">Irrigation</p>
                     <p className="text-sm font-medium text-foreground">{profile.irrigation_type || 'Not set'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Ruler className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Lawn Size</p>
+                    <p className="text-sm font-medium text-foreground">{profile.lawn_size_acres ? `${profile.lawn_size_acres} acres` : 'Not set'}</p>
                   </div>
                 </div>
               </div>

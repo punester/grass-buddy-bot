@@ -151,6 +151,7 @@ export type Database = {
           grass_type: string | null
           id: string
           irrigation_type: string | null
+          lawn_size_acres: number | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_cancel_at_period_end: boolean
@@ -165,6 +166,7 @@ export type Database = {
           grass_type?: string | null
           id: string
           irrigation_type?: string | null
+          lawn_size_acres?: number | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_cancel_at_period_end?: boolean
@@ -179,6 +181,7 @@ export type Database = {
           grass_type?: string | null
           id?: string
           irrigation_type?: string | null
+          lawn_size_acres?: number | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_cancel_at_period_end?: boolean
