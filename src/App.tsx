@@ -33,6 +33,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <TrackingParamsCapture>
         <AuthProvider>
           <SettingsProvider>
             <Routes>
