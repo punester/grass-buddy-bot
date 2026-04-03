@@ -30,6 +30,9 @@ export interface PrecipitationData {
   recommendationReason: string;
   lastUpdated: string;
   etLoss7d: number;
+  weeklyNeed: number;
+  deficit: number;
+  grassType: string;
 }
 
 interface PrecipitationDisplayProps {
