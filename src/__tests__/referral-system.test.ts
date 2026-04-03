@@ -354,6 +354,7 @@ describe('/referrals page', () => {
   });
 
   it('redirects to / when program is inactive', async () => {
+    vi.resetModules();
     vi.doMock('@/hooks/useReferralInfo', () => ({
       useReferralInfo: () => ({
         programActive: false,
