@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Menu, X, Droplets } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import SignInModal from './SignInModal';
