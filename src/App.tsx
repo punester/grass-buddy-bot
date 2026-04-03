@@ -9,6 +9,9 @@ import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Unsubscribe from "./pages/Unsubscribe";
 import Admin from "./pages/Admin";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import EmailUnsubscribe from "./pages/EmailUnsubscribe";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
