@@ -193,7 +193,7 @@ const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data }) => 
                   <li>Next 5 days forecast: {formatPrecipitation(data.forecast.day5)}" expected</li>
                   <li>Evapotranspiration loss (7 days): {formatPrecipitation(data.etLoss7d)}" lost to evaporation</li>
                   <li>Weekly water need for {data.grassType} grass: {formatPrecipitation(data.weeklyNeed)}"</li>
-                  <li>Calculated deficit: {formatPrecipitation(data.deficit)}" ({(data.deficit ?? 0) > 0.5 ? 'WATER if > 0.5"' : (data.deficit ?? 0) < 0 ? 'SKIP if < 0"' : 'MONITOR'})</li>
+                  <li>Calculated deficit: {formatPrecipitation(data.deficit)}" ({(data.deficit ?? 0) > 0.25 ? 'WATER if > 0.25"' : (data.deficit ?? 0) > 0.05 ? 'MONITOR if 0.05–0.25"' : 'SKIP if < 0.05"'})</li>
                 </ul>
               </div>
             </Card>

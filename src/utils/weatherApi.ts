@@ -50,21 +50,29 @@ export const fetchPrecipitationData = async (
         const grassMultiplier =
           grassType === 'Cool-Season' ? 1.25 :
           grassType === 'Warm-Season' ? 0.75 : 1.0;
-        const weeklyNeed = 1.0 * grassMultiplier;
-        const deficit = weeklyNeed + cachedData.etLoss7d - cachedData.precipitation.day5 - cachedData.forecast.day5;
+        const adjustedTarget = cachedData.etLoss7d * grassMultiplier;
+        const weeklyNeed = adjustedTarget;
+        const deficit = adjustedTarget - cachedData.precipitation.day5 - cachedData.forecast.day5;
 
         let recommendation: 'WATER' | 'MONITOR' | 'SKIP';
         let recommendationReason: string;
 
-        if (deficit > 0.5) {
+        if (cachedData.precipitation.day3 > 0.5) {
+          recommendation = 'SKIP';
+          recommendationReason =
+            'Soil is likely saturated from recent rainfall. No watering needed right now.';
+        } else if (deficit > 0.25) {
           recommendation = 'WATER';
-          recommendationReason = "Your lawn needs water — rainfall and forecast aren't enough to cover evaporation losses.";
-        } else if (deficit > 0) {
+          recommendationReason =
+            "Your lawn needs water — recent rainfall and forecast aren't enough to offset evaporation losses.";
+        } else if (deficit > 0.05) {
           recommendation = 'MONITOR';
-          recommendationReason = "You're borderline. Skip today and check again tomorrow.";
+          recommendationReason =
+            "You're borderline. Skip today and check again tomorrow — conditions may resolve on their own.";
         } else {
           recommendation = 'SKIP';
-          recommendationReason = 'Rain has you covered. No watering needed this week.';
+          recommendationReason =
+            'Rain and forecast precipitation have your lawn covered. No watering needed this week.';
         }
 
         const result: PrecipitationData = {
