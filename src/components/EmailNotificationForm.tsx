@@ -79,11 +79,10 @@ const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({
       // 2. Send a sample weekly digest email so they see what they'll get
       if (weatherData && zipCode) {
         try {
-          await supabase.functions.invoke('send-weekly-digest', {
+          await supabase.functions.invoke('daily-weather-job', {
             body: {
-              singleEmail: email.trim(),
-              zipCode,
-              grassType: weatherData.grassType || 'Mixed',
+              forceEmail: true,
+              testZip: zipCode,
             },
           });
         } catch (digestErr) {
@@ -98,8 +97,13 @@ const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({
       setEmail('');
       setAgreeToTerms(false);
     } catch (error) {
+      const message = (error as Error).message || '';
       console.error('Error during signup:', error);
-      toast.error('There was an error signing up. Please try again.');
+      if (message.includes('security purposes') || message.includes('after')) {
+        toast.error('Please wait a moment before trying again.');
+      } else {
+        toast.error('There was an error signing up. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
