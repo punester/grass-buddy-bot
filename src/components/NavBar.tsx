@@ -107,26 +107,26 @@ const NavBar: React.FC = () => {
           <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md shadow-md border-t border-border animate-fade-in">
             <div className="container mx-auto py-4 px-6 flex flex-col space-y-4">
               <a
-                href="#how-it-works"
+                href="/#how-it-works"
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 How It Works
               </a>
-              <a
-                href="#about"
+              <Link
+                to="/about"
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 About
-              </a>
-              <a
-                href="#contact"
+              </Link>
+              <Link
+                to="/contact"
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Contact
-              </a>
+              </Link>
 
               {user ? (
                 <>

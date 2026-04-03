@@ -35,18 +35,16 @@ const Footer: React.FC = () => {
           <div className="md:col-span-1">
             <h3 className="text-sm font-semibold text-foreground uppercase mb-4">Resources</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Lawn Care Guide</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Watering Calculator</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Conservation Tips</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Plant Database</a></li>
+              <li><a href="/#how-it-works" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">How It Works</a></li>
+              <li><Link to="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">About</Link></li>
+              <li><Link to="/contact" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Contact</Link></li>
             </ul>
           </div>
           
           <div className="md:col-span-1">
             <h3 className="text-sm font-semibold text-foreground uppercase mb-4">Company</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">About Us</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Careers</a></li>
+              <li><Link to="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">About Us</Link></li>
               <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Privacy Policy</a></li>
               <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Terms of Service</a></li>
             </ul>
