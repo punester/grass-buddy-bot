@@ -12,7 +12,7 @@ import LockedFeatureCard from '@/components/LockedFeatureCard';
 import DashboardFeedback from '@/components/DashboardFeedback';
 import SubscriptionManager from '@/components/SubscriptionManager';
 import { useUserTier } from '@/hooks/useUserTier';
-import { RefreshCw, Pencil, MapPin, Leaf, Droplets } from 'lucide-react';
+import { RefreshCw, Pencil, MapPin, Leaf, Droplets, Ruler, Timer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
