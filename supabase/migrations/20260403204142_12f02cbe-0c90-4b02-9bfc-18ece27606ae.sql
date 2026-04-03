@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN lawn_size_acres numeric NULL;
