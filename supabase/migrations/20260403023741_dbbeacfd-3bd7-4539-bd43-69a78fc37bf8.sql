@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN email_unsubscribed boolean DEFAULT false;

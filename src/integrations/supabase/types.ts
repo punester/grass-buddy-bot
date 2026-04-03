@@ -105,6 +105,7 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          email_unsubscribed: boolean | null
           grass_type: string | null
           id: string
           irrigation_type: string | null
@@ -114,6 +115,7 @@ export type Database = {
         Insert: {
           created_at?: string
           email?: string | null
+          email_unsubscribed?: boolean | null
           grass_type?: string | null
           id: string
           irrigation_type?: string | null
@@ -123,6 +125,7 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string | null
+          email_unsubscribed?: boolean | null
           grass_type?: string | null
           id?: string
           irrigation_type?: string | null
