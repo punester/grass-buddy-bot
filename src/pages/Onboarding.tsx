@@ -165,7 +165,25 @@ const Onboarding = () => {
                   {IRRIGATION_TYPES.map((type) => (
                     <option key={type} value={type}>{type}</option>
                   ))}
-                </select>
+              </select>
+              </div>
+
+              {/* Lawn Size */}
+              <div>
+                <label htmlFor="lawnSize" className="block text-sm font-medium text-foreground mb-1.5">
+                  Lawn Size (acres)
+                </label>
+                <input
+                  id="lawnSize"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={lawnSize}
+                  onChange={(e) => setLawnSize(e.target.value)}
+                  placeholder="e.g. 0.25"
+                  className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Used to calculate how long to run your sprinklers</p>
               </div>
 
               {/* Terms checkbox */}
