@@ -41,6 +41,9 @@ const Footer: React.FC = () => {
               <li><Link to="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Privacy Policy</Link></li>
               <li><Link to="/tos" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Terms of Service</Link></li>
               <li><Link to="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Pricing</Link></li>
+              {isAdmin && (
+                <li><Link to="/admin" className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200">Admin</Link></li>
+              )}
             </ul>
           </div>
           
