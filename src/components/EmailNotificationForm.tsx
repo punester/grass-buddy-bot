@@ -6,17 +6,23 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { MailIcon } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { PrecipitationData } from '@/components/PrecipitationDisplay';
 
 interface EmailNotificationFormProps {
   address: string;
   recommendation: 'WATER' | 'MONITOR' | 'SKIP';
   recommendedWateringDay: number;
+  weatherData?: PrecipitationData;
+  zipCode?: string;
 }
 
 const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({ 
   address, 
   recommendation,
-  recommendedWateringDay 
+  recommendedWateringDay,
+  weatherData,
+  zipCode,
 }) => {
   const [email, setEmail] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
@@ -38,16 +44,42 @@ const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({
     setIsSubmitting(true);
     
     try {
-      // In a real application, this would call an API to register the email
-      // For demonstration purposes, we'll simulate a successful registration
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      toast.success('You have successfully signed up for email notifications!');
+      // 1. Trigger magic link signup/signin via OTP
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+
+      if (otpError) {
+        throw new Error(otpError.message);
+      }
+
+      // 2. Send a sample weekly digest email so they see what they'll get
+      if (weatherData && zipCode) {
+        try {
+          await supabase.functions.invoke('send-weekly-digest', {
+            body: {
+              singleEmail: email.trim(),
+              zipCode,
+              grassType: weatherData.grassType || 'Mixed',
+            },
+          });
+        } catch (digestErr) {
+          console.error('Sample digest send failed (non-critical):', digestErr);
+        }
+      }
+
+      toast.success(
+        'Check your inbox! We sent a magic link to sign in and a sample of your weekly watering report.',
+        { duration: 8000 }
+      );
       setEmail('');
       setAgreeToTerms(false);
     } catch (error) {
-      console.error('Error registering for email notifications:', error);
-      toast.error('There was an error signing up for notifications. Please try again.');
+      console.error('Error during signup:', error);
+      toast.error('There was an error signing up. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -114,4 +146,3 @@ const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({
 };
 
 export default EmailNotificationForm;
-
