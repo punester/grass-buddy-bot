@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { ArrowDown, DropletIcon, CloudRain } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import AddressForm from '@/components/AddressForm';
@@ -113,6 +114,11 @@ const Index = () => {
                   Receive personalized recommendations on whether your lawn needs watering based on actual precipitation data.
                 </p>
               </div>
+            </div>
+            <div className="text-center mt-10">
+              <Link to="/about" className="text-sm font-medium text-primary hover:underline transition-colors duration-200">
+                More about the numbers →
+              </Link>
             </div>
           </div>
         </section>
