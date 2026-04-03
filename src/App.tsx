@@ -53,6 +53,7 @@ const App = () => (
             </Routes>
           </SettingsProvider>
         </AuthProvider>
+        </TrackingParamsCapture>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
