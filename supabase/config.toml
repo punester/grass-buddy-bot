@@ -28,5 +28,3 @@ project_id = "ntxtezzajvvilwuyifqn"
   [functions.stripe-webhook]
     verify_jwt = false
 
-  [functions.send-weekly-digest]
-    verify_jwt = false
