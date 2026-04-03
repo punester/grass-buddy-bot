@@ -97,7 +97,7 @@ const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({
             htmlFor="terms" 
             className="text-sm text-gray-600 cursor-pointer"
           >
-            I agree to receive email notifications <strong>only when my lawn needs watering</strong>.
+            I agree to receive <strong>weekly watering recommendation emails</strong>.
           </Label>
         </div>
         

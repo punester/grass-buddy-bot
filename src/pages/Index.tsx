@@ -68,7 +68,7 @@ const Index = () => {
         
         {/* Precipitation Display Section */}
         {precipitationData && (
-          <section className="py-12 px-6 max-w-5xl mx-auto">
+          <section id="watering-results" className="py-12 px-6 max-w-5xl mx-auto">
             <PrecipitationDisplay data={precipitationData} />
           </section>
         )}
