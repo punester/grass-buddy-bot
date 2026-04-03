@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -109,6 +127,10 @@ export type Database = {
           grass_type: string | null
           id: string
           irrigation_type: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_cancel_at_period_end: boolean
+          subscription_ends_at: string | null
           tier: string
           zip_code: string | null
         }
@@ -119,6 +141,10 @@ export type Database = {
           grass_type?: string | null
           id: string
           irrigation_type?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_cancel_at_period_end?: boolean
+          subscription_ends_at?: string | null
           tier?: string
           zip_code?: string | null
         }
@@ -129,6 +155,10 @@ export type Database = {
           grass_type?: string | null
           id?: string
           irrigation_type?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_cancel_at_period_end?: boolean
+          subscription_ends_at?: string | null
           tier?: string
           zip_code?: string | null
         }

@@ -1,31 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import AnimatedBackground from '@/components/AnimatedBackground';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchPrecipitationData } from '@/utils/weatherApi';
 import PrecipitationDisplay, { PrecipitationData } from '@/components/PrecipitationDisplay';
 import LockedFeatureCard from '@/components/LockedFeatureCard';
+import SubscriptionManager from '@/components/SubscriptionManager';
 import { useUserTier } from '@/hooks/useUserTier';
 import { RefreshCw, Pencil, MapPin, Leaf, Droplets } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 interface Profile {
   zip_code: string | null;
   grass_type: string | null;
   irrigation_type: string | null;
+  subscription_cancel_at_period_end: boolean;
+  subscription_ends_at: string | null;
 }
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isFree, isPaid } = useUserTier();
+  const { annualPrice } = useSettings();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [weatherData, setWeatherData] = useState<PrecipitationData | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [error, setError] = useState('');
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+
+  // Handle upgrade success return
+  useEffect(() => {
+    if (searchParams.get('upgraded') === 'true') {
+      toast.success('Welcome to ThirstyGrass Pro 🌿');
+      // Clean URL
+      window.history.replaceState({}, '', '/dashboard');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -33,20 +50,22 @@ const Dashboard = () => {
     }
   }, [authLoading, user, navigate]);
 
+  const fetchProfile = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('zip_code, grass_type, irrigation_type, subscription_cancel_at_period_end, subscription_ends_at')
+      .eq('id', user.id)
+      .single();
+    if (!data || !data.zip_code) {
+      navigate('/onboarding');
+      return;
+    }
+    setProfile(data);
+  };
+
   useEffect(() => {
     if (!user) return;
-    const fetchProfile = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('zip_code, grass_type, irrigation_type')
-        .eq('id', user.id)
-        .single();
-      if (!data || !data.zip_code) {
-        navigate('/onboarding');
-        return;
-      }
-      setProfile(data);
-    };
     fetchProfile();
   }, [user]);
 
@@ -81,6 +100,25 @@ const Dashboard = () => {
     }
   };
 
+  const handleUpgrade = async () => {
+    if (!user) return;
+    setUpgradeLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { returnUrl: `${window.location.origin}/dashboard` },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (e) {
+      toast.error('Failed to start checkout');
+      console.error(e);
+    } finally {
+      setUpgradeLoading(false);
+    }
+  };
+
   if (authLoading) return null;
 
   return (
@@ -104,7 +142,7 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Recommendation — reuse homepage component */}
+          {/* Recommendation */}
           {weatherData ? (
             <PrecipitationDisplay data={weatherData} />
           ) : isLoadingWeather ? (
@@ -155,7 +193,7 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Lawn Profile Summary — below the result */}
+          {/* Lawn Profile Summary */}
           {profile && (
             <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
               <div className="flex items-center justify-between mb-4">
@@ -206,22 +244,32 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Multi-lawn — gated */}
+              {/* Upgrade CTA for free users */}
               {isFree && (
                 <div className="mt-5 pt-5 border-t border-border flex items-center justify-between">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <span>🔒</span>
                     <span className="text-sm">Multiple lawns available on paid plan</span>
                   </div>
-                  <a
-                    href="/pricing"
-                    className="text-sm font-medium text-primary hover:underline"
+                  <button
+                    onClick={handleUpgrade}
+                    disabled={upgradeLoading}
+                    className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
                   >
-                    Unlock for $24/year
-                  </a>
+                    {upgradeLoading ? 'Loading…' : `Unlock for $${annualPrice}/year`}
+                  </button>
                 </div>
               )}
             </div>
+          )}
+
+          {/* Subscription management for paid users */}
+          {isPaid && profile && (
+            <SubscriptionManager
+              subscriptionCancelAtPeriodEnd={profile.subscription_cancel_at_period_end}
+              subscriptionEndsAt={profile.subscription_ends_at}
+              onUpdate={fetchProfile}
+            />
           )}
         </div>
       </main>

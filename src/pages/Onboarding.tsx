@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import AnimatedBackground from '@/components/AnimatedBackground';
 import { DropletIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 const GRASS_TYPES = [
   'Not Sure',
@@ -30,6 +31,7 @@ const Onboarding = () => {
   const [grassType, setGrassType] = useState('');
   const [irrigationType, setIrrigationType] = useState('');
   const [zipError, setZipError] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -49,6 +51,10 @@ const Onboarding = () => {
     const error = validateZip(zipCode);
     if (error) {
       setZipError(error);
+      return;
+    }
+    if (!agreedToTerms) {
+      toast.error('Please agree to the Terms of Service and Privacy Policy');
       return;
     }
 
@@ -158,6 +164,23 @@ const Onboarding = () => {
                     <option key={type} value={type}>{type}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* Terms checkbox */}
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-primary/50"
+                />
+                <label htmlFor="terms" className="text-sm text-muted-foreground">
+                  I agree to the{' '}
+                  <Link to="/tos" className="text-primary hover:underline" target="_blank">Terms of Service</Link>
+                  {' '}and{' '}
+                  <Link to="/privacy" className="text-primary hover:underline" target="_blank">Privacy Policy</Link>
+                </label>
               </div>
 
               <button

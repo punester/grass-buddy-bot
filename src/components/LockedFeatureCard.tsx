@@ -1,6 +1,7 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useSettings } from '@/contexts/SettingsContext';
 
 interface LockedFeatureCardProps {
   icon?: string;
@@ -17,6 +18,8 @@ const LockedFeatureCard: React.FC<LockedFeatureCardProps> = ({
   className = '',
   children,
 }) => {
+  const { annualPrice } = useSettings();
+
   return (
     <div className={`relative bg-card rounded-2xl shadow-md border border-border p-6 ${className}`}>
       {children && (
@@ -35,7 +38,7 @@ const LockedFeatureCard: React.FC<LockedFeatureCardProps> = ({
           to="/pricing"
           className="inline-flex items-center px-5 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors"
         >
-          Unlock for $24/year
+          Unlock for ${annualPrice}/year
         </Link>
       </div>
     </div>
