@@ -207,7 +207,7 @@ export const fetchPrecipitationData = async (
   try {
     await supabase.rpc('upsert_zip_cache', {
       p_zip_code: zipCode,
-      p_weather_data: result as unknown as Record<string, unknown>,
+      p_weather_data: JSON.parse(JSON.stringify(result)),
     });
   } catch {
     // Non-critical: don't fail the request if caching fails
