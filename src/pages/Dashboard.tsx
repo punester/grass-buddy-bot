@@ -165,6 +165,40 @@ const Dashboard = () => {
             </div>
           ) : null}
 
+          {/* How Long to Water */}
+          {weatherData && (
+            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Timer className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">How Long to Water</h2>
+              </div>
+              {weatherData.recommendation === 'WATER' && profile?.lawn_size_acres ? (
+                (() => {
+                  const lawnSqFt = profile.lawn_size_acres * 43560;
+                  const gallonsNeeded = weatherData.deficit * lawnSqFt * 0.623;
+                  const minutesToWater = Math.ceil(gallonsNeeded / 2);
+                  return (
+                    <div className="text-center py-4">
+                      <p className="text-4xl font-bold text-primary">{minutesToWater} min</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Based on your {profile.lawn_size_acres} acre lawn at 2 GPM flow rate
+                      </p>
+                    </div>
+                  );
+                })()
+              ) : weatherData.recommendation !== 'WATER' ? (
+                <p className="text-sm text-muted-foreground">No watering needed today</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Add your lawn size in your profile to see watering duration.{' '}
+                  <button onClick={() => navigate('/onboarding')} className="text-primary hover:underline">
+                    Update profile
+                  </button>
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Daily SMS Alerts — gated */}
           {isFree ? (
             <LockedFeatureCard
