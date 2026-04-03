@@ -38,6 +38,7 @@ interface PrecipitationDisplayProps {
 }
 
 const PrecipitationDisplay: React.FC<PrecipitationDisplayProps> = ({ data, zipCode }) => {
+  const { user } = useAuth();
   const formatPrecipitation = (inches: number | undefined): string => {
     return (inches ?? 0).toFixed(2);
   };
