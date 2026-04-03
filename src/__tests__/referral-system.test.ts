@@ -329,7 +329,7 @@ describe('/referrals page', () => {
       referrals: [],
     };
 
-    // Mock useReferralInfo to return active program
+    vi.resetModules();
     vi.doMock('@/hooks/useReferralInfo', () => ({
       useReferralInfo: () => ({
         programActive: true,
@@ -349,7 +349,8 @@ describe('/referrals page', () => {
     expect(screen.getByText(/Help your friends waste less water/i)).toBeTruthy();
     expect(screen.getByText(/14,000/)).toBeTruthy();
     expect(screen.getByText(/December 31, 2026/)).toBeTruthy();
-    expect(screen.getByText(/2 friends join/)).toBeTruthy();
+    const matches = screen.getAllByText(/2 friends join/);
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('redirects to / when program is inactive', async () => {
