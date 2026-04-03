@@ -87,6 +87,14 @@ const NavBar: React.FC = () => {
 
             {user ? (
               <div className="flex items-center space-x-4">
+                {referralActive && (
+                  <Link
+                    to="/referrals"
+                    className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
+                  >
+                    Refer a Friend
+                  </Link>
+                )}
                 <Link
                   to="/dashboard"
                   className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
