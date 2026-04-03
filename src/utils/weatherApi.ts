@@ -130,5 +130,8 @@ const etLoss7d = sumSlice(et, todayIndex - 7, todayIndex) / 25.4;
     recommendationReason,
     lastUpdated: new Date().toLocaleString(),
     etLoss7d,
+    weeklyNeed,
+    deficit,
+    grassType,
   };
 };
