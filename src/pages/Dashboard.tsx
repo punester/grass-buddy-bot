@@ -69,7 +69,8 @@ const Dashboard = () => {
     try {
       const data = await fetchPrecipitationData(
         profile.zip_code,
-        getGrassCategory(profile.grass_type)
+        getGrassCategory(profile.grass_type),
+        user?.id ?? null
       );
       setWeatherData(data);
     } catch (e) {
