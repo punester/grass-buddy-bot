@@ -49,7 +49,26 @@ const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({
         email: email.trim(),
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
-          data: { zip_code: zipCode },
+          data: {
+            zip_code: zipCode,
+            ...(weatherData ? {
+              recommendation: recommendation,
+              recommendationReason: weatherData.recommendationReason || '',
+              precipitation_day1: weatherData.precipitation?.day1 ?? 0,
+              precipitation_day3: weatherData.precipitation?.day3 ?? 0,
+              precipitation_day5: weatherData.precipitation?.day5 ?? 0,
+              forecast_day1: weatherData.forecast?.day1 ?? 0,
+              forecast_day3: weatherData.forecast?.day3 ?? 0,
+              forecast_day5: weatherData.forecast?.day5 ?? 0,
+              forecast_recommendedWateringDay: weatherData.forecast?.recommendedWateringDay ?? 0,
+              lastUpdated: weatherData.lastUpdated || '',
+              etLoss7d: weatherData.etLoss7d ?? 0,
+              weeklyNeed: weatherData.weeklyNeed ?? 0,
+              deficit: weatherData.deficit ?? 0,
+              grassType: weatherData.grassType || '',
+              weather_address: weatherData.address || address,
+            } : {}),
+          },
         },
       });
 
