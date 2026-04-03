@@ -2,8 +2,11 @@ import React from 'react';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import AnimatedBackground from '@/components/AnimatedBackground';
+import { useSettings } from '@/contexts/SettingsContext';
 
 const TermsOfService = () => {
+  const { publicEmail } = useSettings();
+
   return (
     <div className="min-h-screen flex flex-col">
       <AnimatedBackground />
@@ -55,7 +58,7 @@ const TermsOfService = () => {
 
           <h2 className="text-xl font-semibold text-foreground mt-8 mb-3">Contact</h2>
           <p className="text-muted-foreground mb-4">
-            For questions about these terms, contact <a href="mailto:admin@110labs.com" className="text-primary hover:underline">admin@110labs.com</a>.
+            For questions about these terms, contact <a href={`mailto:${publicEmail}`} className="text-primary hover:underline">{publicEmail}</a>.
           </p>
         </div>
       </main>
