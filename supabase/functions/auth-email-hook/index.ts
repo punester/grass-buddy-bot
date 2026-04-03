@@ -228,35 +228,64 @@ async function handleWebhook(req: Request): Promise<Response> {
     newEmail: payload.data.new_email,
   }
 
-  // For magiclink emails, look up weather data from zip_cache
+  // For magiclink emails, pull weather data from user metadata (passed via OTP data)
+  // This avoids the race condition where the profile doesn't exist yet for new signups
   if (emailType === 'magiclink') {
-    try {
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      )
-      // Find user's zip from their profile
-      const { data: profile } = await supabaseAdmin
-        .from('profiles')
-        .select('zip_code')
-        .eq('email', payload.data.email)
-        .single()
-
-      if (profile?.zip_code) {
-        const { data: cache } = await supabaseAdmin
-          .from('zip_cache')
-          .select('weather_data')
-          .eq('zip_code', profile.zip_code)
-          .single()
-
-        if (cache?.weather_data) {
-          templateProps.weatherData = cache.weather_data
-          console.log('Attached weather data to magiclink email', { zip: profile.zip_code })
-        }
+    const meta = payload.data.user_metadata || {}
+    if (meta.recommendation) {
+      templateProps.weatherData = {
+        address: meta.weather_address || '',
+        recommendation: meta.recommendation,
+        recommendationReason: meta.recommendationReason || '',
+        precipitation: {
+          day1: Number(meta.precipitation_day1) || 0,
+          day3: Number(meta.precipitation_day3) || 0,
+          day5: Number(meta.precipitation_day5) || 0,
+        },
+        forecast: {
+          day1: Number(meta.forecast_day1) || 0,
+          day3: Number(meta.forecast_day3) || 0,
+          day5: Number(meta.forecast_day5) || 0,
+          recommendedWateringDay: Number(meta.forecast_recommendedWateringDay) || 0,
+        },
+        lastUpdated: meta.lastUpdated || '',
+        etLoss7d: Number(meta.etLoss7d) || 0,
+        weeklyNeed: Number(meta.weeklyNeed) || 0,
+        deficit: Number(meta.deficit) || 0,
+        grassType: meta.grassType || '',
       }
-    } catch (err) {
-      console.warn('Could not fetch weather data for magiclink email', err)
-      // Continue without weather data - email still works
+      console.log('Attached weather data from user metadata to magiclink email')
+    } else {
+      // Fallback: try fetching from zip_cache for returning users
+      try {
+        const supabaseAdmin = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        )
+        const zipCode = meta.zip_code || null
+        let zip = zipCode
+        if (!zip) {
+          const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('zip_code')
+            .eq('email', payload.data.email)
+            .single()
+          zip = profile?.zip_code
+        }
+        if (zip) {
+          const { data: cache } = await supabaseAdmin
+            .from('zip_cache')
+            .select('weather_data')
+            .eq('zip_code', zip)
+            .single()
+          if (cache?.weather_data) {
+            templateProps.weatherData = cache.weather_data
+            console.log('Attached weather data from zip_cache fallback', { zip })
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch weather data for magiclink email', err)
+      }
     }
   }
 
