@@ -278,6 +278,15 @@ const Dashboard = () => {
                     <p className="text-sm font-medium text-foreground">{profile.irrigation_type || 'Not set'}</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Ruler className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Lawn Size</p>
+                    <p className="text-sm font-medium text-foreground">{profile.lawn_size_acres ? `${profile.lawn_size_acres} acres` : 'Not set'}</p>
+                  </div>
+                </div>
               </div>
 
               {/* Upgrade CTA for free users */}
