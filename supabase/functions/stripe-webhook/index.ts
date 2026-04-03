@@ -2,6 +2,17 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
+async function sendEmail(supabase: ReturnType<typeof createClient>, templateName: string, recipientEmail: string, idempotencyKey: string, templateData: Record<string, any> = {}) {
+  try {
+    await supabase.functions.invoke('send-transactional-email', {
+      body: { templateName, recipientEmail, idempotencyKey, templateData },
+    });
+    console.log(`[stripe-webhook] Sent ${templateName} to ${recipientEmail}`);
+  } catch (err) {
+    console.error(`[stripe-webhook] Failed to send ${templateName}:`, err);
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -67,6 +78,17 @@ serve(async (req) => {
         .eq("id", userId);
 
       console.log(`[stripe-webhook] Upgraded user ${userId} to paid`);
+
+      // Send welcome email
+      const { data: upgradedProfile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", userId)
+        .single();
+
+      if (upgradedProfile?.email) {
+        await sendEmail(supabase, 'subscription-welcome', upgradedProfile.email, `sub-welcome-${subscriptionId}`);
+      }
     }
 
     if (event.type === "customer.subscription.deleted") {
@@ -80,6 +102,13 @@ serve(async (req) => {
         .single();
 
       if (profile) {
+        // Get email before downgrading
+        const { data: cancelProfile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", profile.id)
+          .single();
+
         await supabase
           .from("profiles")
           .update({
@@ -91,6 +120,13 @@ serve(async (req) => {
           .eq("id", profile.id);
 
         console.log(`[stripe-webhook] Downgraded user ${profile.id} to free`);
+
+        // Send cancellation email
+        if (cancelProfile?.email) {
+          await sendEmail(supabase, 'subscription-cancelled', cancelProfile.email, `sub-cancel-${subscription.id}`, {
+            endsAt: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          });
+        }
       }
     }
   } catch (err) {
