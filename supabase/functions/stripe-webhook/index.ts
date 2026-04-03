@@ -2,6 +2,17 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
+async function sendEmail(supabase: ReturnType<typeof createClient>, templateName: string, recipientEmail: string, idempotencyKey: string, templateData: Record<string, any> = {}) {
+  try {
+    await supabase.functions.invoke('send-transactional-email', {
+      body: { templateName, recipientEmail, idempotencyKey, templateData },
+    });
+    console.log(`[stripe-webhook] Sent ${templateName} to ${recipientEmail}`);
+  } catch (err) {
+    console.error(`[stripe-webhook] Failed to send ${templateName}:`, err);
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
