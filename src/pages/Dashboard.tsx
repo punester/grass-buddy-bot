@@ -56,7 +56,7 @@ const Dashboard = () => {
     if (!user) return;
     const { data } = await supabase
       .from('profiles')
-      .select('zip_code, grass_type, irrigation_type, subscription_cancel_at_period_end, subscription_ends_at')
+      .select('zip_code, grass_type, irrigation_type, subscription_cancel_at_period_end, subscription_ends_at, lawn_size_acres')
       .eq('id', user.id)
       .single();
     if (!data || !data.zip_code) {
