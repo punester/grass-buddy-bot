@@ -12,6 +12,7 @@ import { fetchPrecipitationData } from '@/utils/weatherApi';
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [precipitationData, setPrecipitationData] = useState<PrecipitationData | null>(null);
+  const [currentZip, setCurrentZip] = useState('');
 
   const handleZipSubmit = async (zipCode: string) => {
     setIsLoading(true);
