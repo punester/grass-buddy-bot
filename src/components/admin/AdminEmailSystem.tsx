@@ -179,6 +179,7 @@ const AdminEmailSystem = () => {
           </p>
         </CardContent>
       </Card>
+      <AdminEmailLog />
     </div>
   );
 };
