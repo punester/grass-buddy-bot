@@ -17,8 +17,14 @@ import Pricing from "./pages/Pricing";
 import Privacy from "./pages/Privacy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
+import { useTrackingParams } from "@/hooks/useTrackingParams";
 
 const queryClient = new QueryClient();
+
+const TrackingParamsCapture = ({ children }: { children: React.ReactNode }) => {
+  useTrackingParams();
+  return <>{children}</>;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
