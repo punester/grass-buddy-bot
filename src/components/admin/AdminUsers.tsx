@@ -16,13 +16,17 @@ interface Profile {
   irrigation_type: string | null;
   tier: string;
   created_at: string;
+  premium_source: string | null;
+  premium_until: string | null;
+  referred_by: string | null;
 }
 
 const AdminUsers = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [search, setSearch] = useState('');
-  const [tierFilter, setTierFilter] = useState('all');
+  const [filter, setFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [referrerEmails, setReferrerEmails] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     loadProfiles();
@@ -33,7 +37,20 @@ const AdminUsers = () => {
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
-    if (data) setProfiles(data);
+    if (data) {
+      setProfiles(data as Profile[]);
+      // Resolve referrer emails
+      const referrerIds = [...new Set(data.filter(p => p.referred_by).map(p => p.referred_by!))] ;
+      if (referrerIds.length > 0) {
+        const { data: referrers } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .in('id', referrerIds);
+        if (referrers) {
+          setReferrerEmails(new Map(referrers.map(r => [r.id, r.email || '—'])));
+        }
+      }
+    }
     if (error) toast.error('Failed to load profiles');
   };
 
@@ -55,8 +72,14 @@ const AdminUsers = () => {
       !search ||
       (p.email?.toLowerCase().includes(search.toLowerCase())) ||
       (p.zip_code?.includes(search));
-    const matchesTier = tierFilter === 'all' || p.tier === tierFilter;
-    return matchesSearch && matchesTier;
+
+    let matchesFilter = true;
+    if (filter === 'paid_stripe') matchesFilter = p.tier === 'paid' && p.premium_source === 'stripe';
+    else if (filter === 'paid_referral') matchesFilter = p.tier === 'paid' && p.premium_source === 'referral';
+    else if (filter === 'free') matchesFilter = p.tier === 'free';
+    else if (filter === 'paid') matchesFilter = p.tier === 'paid';
+
+    return matchesSearch && matchesFilter;
   });
 
   return (
@@ -68,14 +91,16 @@ const AdminUsers = () => {
           onChange={e => setSearch(e.target.value)}
           className="flex-1"
         />
-        <Select value={tierFilter} onValueChange={setTierFilter}>
-          <SelectTrigger className="w-36">
+        <Select value={filter} onValueChange={setFilter}>
+          <SelectTrigger className="w-44">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Tiers</SelectItem>
+            <SelectItem value="all">All Users</SelectItem>
+            <SelectItem value="paid">Paid Premium</SelectItem>
+            <SelectItem value="paid_stripe">Stripe Premium</SelectItem>
+            <SelectItem value="paid_referral">Referral Premium</SelectItem>
             <SelectItem value="free">Free</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -87,9 +112,11 @@ const AdminUsers = () => {
               <tr className="border-b bg-muted/50">
                 <th className="text-left p-3 font-medium text-muted-foreground">Email</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">ZIP</th>
-                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Grass Type</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Tier</th>
-                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Joined</th>
+                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Premium Source</th>
+                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Premium Until</th>
+                <th className="text-left p-3 font-medium text-muted-foreground hidden lg:table-cell">Referred By</th>
+                <th className="text-left p-3 font-medium text-muted-foreground hidden lg:table-cell">Joined</th>
                 <th className="text-right p-3 font-medium text-muted-foreground">Actions</th>
               </tr>
             </thead>
@@ -102,13 +129,17 @@ const AdminUsers = () => {
                   >
                     <td className="p-3 text-foreground">{p.email || '—'}</td>
                     <td className="p-3 text-foreground font-mono">{p.zip_code || '—'}</td>
-                    <td className="p-3 text-foreground hidden md:table-cell">{p.grass_type || '—'}</td>
                     <td className="p-3">
-                      <Badge variant={p.tier === 'paid' ? 'default' : 'secondary'}>
-                        {p.tier}
-                      </Badge>
+                      <Badge variant={p.tier === 'paid' ? 'default' : 'secondary'}>{p.tier}</Badge>
                     </td>
+                    <td className="p-3 text-foreground hidden md:table-cell">{p.premium_source || '—'}</td>
                     <td className="p-3 text-muted-foreground hidden md:table-cell">
+                      {p.premium_until ? new Date(p.premium_until).toLocaleDateString() : '—'}
+                    </td>
+                    <td className="p-3 text-muted-foreground hidden lg:table-cell">
+                      {p.referred_by ? (referrerEmails.get(p.referred_by) || p.referred_by.slice(0, 8)) : '—'}
+                    </td>
+                    <td className="p-3 text-muted-foreground hidden lg:table-cell">
                       {new Date(p.created_at).toLocaleDateString()}
                     </td>
                     <td className="p-3 text-right">
@@ -128,15 +159,14 @@ const AdminUsers = () => {
                   </tr>
                   {expandedId === p.id && (
                     <tr className="bg-muted/20">
-                      <td colSpan={6} className="p-4">
+                      <td colSpan={8} className="p-4">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div><span className="text-muted-foreground">ID:</span> <span className="font-mono text-xs">{p.id}</span></div>
-                          <div><span className="text-muted-foreground">Email:</span> {p.email || '—'}</div>
-                          <div><span className="text-muted-foreground">ZIP:</span> {p.zip_code || '—'}</div>
                           <div><span className="text-muted-foreground">Grass:</span> {p.grass_type || '—'}</div>
                           <div><span className="text-muted-foreground">Irrigation:</span> {p.irrigation_type || '—'}</div>
-                          <div><span className="text-muted-foreground">Tier:</span> {p.tier}</div>
-                          <div><span className="text-muted-foreground">Created:</span> {new Date(p.created_at).toLocaleString()}</div>
+                          <div><span className="text-muted-foreground">Premium Source:</span> {p.premium_source || '—'}</div>
+                          <div><span className="text-muted-foreground">Premium Until:</span> {p.premium_until ? new Date(p.premium_until).toLocaleString() : '—'}</div>
+                          <div><span className="text-muted-foreground">Referred By:</span> {p.referred_by ? (referrerEmails.get(p.referred_by) || p.referred_by) : '—'}</div>
                         </div>
                       </td>
                     </tr>
@@ -145,7 +175,7 @@ const AdminUsers = () => {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-muted-foreground">No users found</td>
+                  <td colSpan={8} className="p-6 text-center text-muted-foreground">No users found</td>
                 </tr>
               )}
             </tbody>

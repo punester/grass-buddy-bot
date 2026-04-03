@@ -1,15 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu, X, Droplets } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import SignInModal from './SignInModal';
 
 const NavBar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
+  const [referralActive, setReferralActive] = useState(false);
   const { user, signOut } = useAuth();
+
+  useEffect(() => {
+    supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'referral_program_active')
+      .single()
+      .then(({ data }) => {
+        if (data?.value === 'true') setReferralActive(true);
+      });
+  }, []);
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -74,6 +87,14 @@ const NavBar: React.FC = () => {
 
             {user ? (
               <div className="flex items-center space-x-4">
+                {referralActive && (
+                  <Link
+                    to="/referrals"
+                    className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
+                  >
+                    Refer a Friend
+                  </Link>
+                )}
                 <Link
                   to="/dashboard"
                   className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors duration-200"
@@ -149,6 +170,15 @@ const NavBar: React.FC = () => {
 
               {user ? (
                 <>
+                  {referralActive && (
+                    <Link
+                      to="/referrals"
+                      className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Refer a Friend
+                    </Link>
+                  )}
                   <Link
                     to="/dashboard"
                     className="text-sm font-medium text-foreground hover:text-primary transition-colors duration-200 py-2"

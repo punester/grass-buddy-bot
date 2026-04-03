@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import AnimatedBackground from '@/components/AnimatedBackground';
@@ -11,8 +11,10 @@ import PrecipitationDisplay, { PrecipitationData } from '@/components/Precipitat
 import LockedFeatureCard from '@/components/LockedFeatureCard';
 import DashboardFeedback from '@/components/DashboardFeedback';
 import SubscriptionManager from '@/components/SubscriptionManager';
+import ReferralShareBlock from '@/components/ReferralShareBlock';
 import { useUserTier } from '@/hooks/useUserTier';
-import { RefreshCw, Pencil, MapPin, Leaf, Droplets, Ruler, Timer } from 'lucide-react';
+import { useReferralInfo } from '@/hooks/useReferralInfo';
+import { RefreshCw, Pencil, MapPin, Leaf, Droplets, Ruler, Timer, Gift, CreditCard } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -31,6 +33,7 @@ const Dashboard = () => {
   const [searchParams] = useSearchParams();
   const { isFree, isPaid } = useUserTier();
   const { annualPrice } = useSettings();
+  const { programActive, threshold, referralCode, referralCount, premiumSource, premiumUntil } = useReferralInfo();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [weatherData, setWeatherData] = useState<PrecipitationData | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
@@ -308,13 +311,80 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Subscription management for paid users */}
-          {isPaid && profile && (
-            <SubscriptionManager
-              subscriptionCancelAtPeriodEnd={profile.subscription_cancel_at_period_end}
-              subscriptionEndsAt={profile.subscription_ends_at}
-              onUpdate={fetchProfile}
-            />
+          {/* Subscription Status */}
+          <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
+            <div className="flex items-center gap-2 mb-3">
+              <CreditCard className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">Your Subscription</h2>
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <Badge variant={isPaid ? 'default' : 'secondary'}>{isPaid ? 'Premium' : 'Free'}</Badge>
+            </div>
+            {premiumUntil && (
+              <p className="text-sm text-muted-foreground mb-2">
+                Your premium access is active through {new Date(premiumUntil).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.
+              </p>
+            )}
+            {premiumSource === 'stripe' && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Active subscription — you'll be billed again on {profile?.subscription_ends_at ? new Date(profile.subscription_ends_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'renewal date'}.
+                </p>
+                {isPaid && profile && (
+                  <SubscriptionManager
+                    subscriptionCancelAtPeriodEnd={profile.subscription_cancel_at_period_end}
+                    subscriptionEndsAt={profile.subscription_ends_at}
+                    onUpdate={fetchProfile}
+                  />
+                )}
+              </div>
+            )}
+            {premiumSource === 'referral' && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Earned via referral program.</p>
+                {premiumUntil && new Date(premiumUntil).getTime() - Date.now() < 60 * 24 * 60 * 60 * 1000 && (
+                  <p className="text-sm text-foreground mt-2">
+                    Your free year ends soon —{' '}
+                    <Link to="/pricing" className="text-primary hover:underline font-medium">
+                      add a subscription to keep premium access
+                    </Link>.
+                  </p>
+                )}
+              </div>
+            )}
+            {isFree && (
+              <p className="text-sm text-muted-foreground">
+                Upgrade to premium for daily SMS alerts and more.{' '}
+                <Link to="/pricing" className="text-primary hover:underline font-medium">View plans</Link>
+              </p>
+            )}
+          </div>
+
+          {/* Referral Section */}
+          {programActive && (
+            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Gift className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">Refer a Friend, Earn a Free Year</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Share your link. When {threshold} friends sign up free, you get one year of premium — on us.
+              </p>
+              {premiumSource === 'referral' && premiumUntil && new Date(premiumUntil) > new Date() ? (
+                <p className="text-sm text-foreground">
+                  🎉 You've earned a free year of premium! Active through {new Date(premiumUntil).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.
+                </p>
+              ) : referralCode ? (
+                <ReferralShareBlock
+                  referralCode={referralCode}
+                  referralCount={referralCount}
+                  threshold={threshold}
+                />
+              ) : null}
+              <Link to="/referrals" className="text-sm text-primary hover:underline mt-3 inline-block">
+                Learn more about the referral program →
+              </Link>
+            </div>
           )}
 
           {/* User Feedback */}
