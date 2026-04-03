@@ -33,6 +33,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
 
         if (event === 'SIGNED_IN' && newSession?.user) {
+          // Don't redirect if already on a valid authenticated route
+          const currentPath = window.location.pathname;
+          if (currentPath === '/admin' || currentPath === '/dashboard' || currentPath === '/onboarding') {
+            return;
+          }
           // Check profile and redirect
           setTimeout(async () => {
             const { data: profile } = await supabase
