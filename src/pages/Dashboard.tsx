@@ -6,8 +6,8 @@ import AnimatedBackground from '@/components/AnimatedBackground';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchPrecipitationData } from '@/utils/weatherApi';
-import { PrecipitationData } from '@/components/PrecipitationDisplay';
-import { DropletIcon, Eye, AlertTriangle, RefreshCw, Pencil, MapPin, Leaf, Droplets } from 'lucide-react';
+import PrecipitationDisplay, { PrecipitationData } from '@/components/PrecipitationDisplay';
+import { RefreshCw, Pencil, MapPin, Leaf, Droplets } from 'lucide-react';
 
 interface Profile {
   zip_code: string | null;
@@ -23,14 +23,12 @@ const Dashboard = () => {
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [error, setError] = useState('');
 
-  // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/');
     }
   }, [authLoading, user, navigate]);
 
-  // Fetch profile
   useEffect(() => {
     if (!user) return;
     const fetchProfile = async () => {
@@ -48,7 +46,6 @@ const Dashboard = () => {
     fetchProfile();
   }, [user]);
 
-  // Fetch weather when profile loads
   useEffect(() => {
     if (profile?.zip_code) {
       loadWeather();
@@ -82,76 +79,30 @@ const Dashboard = () => {
 
   if (authLoading) return null;
 
-  const badgeConfig = {
-    WATER: {
-      bg: 'bg-red-500',
-      icon: <AlertTriangle className="h-6 w-6 text-white" />,
-      label: 'Water Today',
-    },
-    MONITOR: {
-      bg: 'bg-amber-500',
-      icon: <Eye className="h-6 w-6 text-white" />,
-      label: 'Keep an Eye on It',
-    },
-    SKIP: {
-      bg: 'bg-green-500',
-      icon: <DropletIcon className="h-6 w-6 text-white" />,
-      label: 'No Watering Needed',
-    },
-  };
-
   return (
     <div className="min-h-screen flex flex-col">
       <AnimatedBackground />
       <NavBar />
       <main className="flex-1 pt-28 pb-16">
-        <div className="container mx-auto px-4 max-w-2xl">
+        <div className="container mx-auto px-4 max-w-5xl">
 
-          {/* Recommendation Card */}
-          {weatherData ? (
-            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mb-6">
-              {/* Status badge */}
-              <div className="flex items-center justify-between mb-5">
-                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-white font-semibold ${badgeConfig[weatherData.recommendation].bg}`}>
-                  {badgeConfig[weatherData.recommendation].icon}
-                  {badgeConfig[weatherData.recommendation].label}
-                </div>
-                <button
-                  onClick={loadWeather}
-                  disabled={isLoadingWeather}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-2"
-                  aria-label="Refresh"
-                >
-                  <RefreshCw className={`h-5 w-5 ${isLoadingWeather ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-
-              {/* Headline */}
-              <p className="text-lg font-semibold text-foreground mb-5">
-                {weatherData.recommendationReason}
-              </p>
-
-              {/* Stat chips */}
-              <div className="flex flex-wrap gap-3 mb-4">
-                <div className="flex items-center gap-1.5 bg-muted rounded-full px-4 py-2 text-sm font-medium text-foreground">
-                  <span>🌧</span> {weatherData.precipitation.day5.toFixed(1)} in
-                  <span className="text-muted-foreground ml-1">Rain this week</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-muted rounded-full px-4 py-2 text-sm font-medium text-foreground">
-                  <span>☀️</span> {weatherData.etLoss7d.toFixed(1)} in
-                  <span className="text-muted-foreground ml-1">Evaporated</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-muted rounded-full px-4 py-2 text-sm font-medium text-foreground">
-                  <span>⛅</span> {weatherData.forecast.day5.toFixed(1)} in
-                  <span className="text-muted-foreground ml-1">Forecast</span>
-                </div>
-              </div>
-
-              {/* Timestamp */}
-              <p className="text-xs text-muted-foreground">
-                Last updated: {weatherData.lastUpdated}
-              </p>
+          {/* Refresh button */}
+          {weatherData && (
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={loadWeather}
+                disabled={isLoadingWeather}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoadingWeather ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
             </div>
+          )}
+
+          {/* Recommendation — reuse homepage component */}
+          {weatherData ? (
+            <PrecipitationDisplay data={weatherData} />
           ) : isLoadingWeather ? (
             <div className="bg-card rounded-2xl shadow-md border border-border p-10 mb-6 text-center">
               <RefreshCw className="h-8 w-8 text-primary animate-spin mx-auto mb-3" />
@@ -170,9 +121,9 @@ const Dashboard = () => {
             </div>
           ) : null}
 
-          {/* Lawn Profile Summary */}
+          {/* Lawn Profile Summary — below the result */}
           {profile && (
-            <div className="bg-card rounded-2xl shadow-md border border-border p-6">
+            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Your Lawn Profile</h2>
                 <button
