@@ -7,7 +7,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchPrecipitationData } from '@/utils/weatherApi';
 import PrecipitationDisplay, { PrecipitationData } from '@/components/PrecipitationDisplay';
+import LockedFeatureCard from '@/components/LockedFeatureCard';
+import { useUserTier } from '@/hooks/useUserTier';
 import { RefreshCw, Pencil, MapPin, Leaf, Droplets } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface Profile {
   zip_code: string | null;
@@ -18,6 +21,7 @@ interface Profile {
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { isFree, isPaid } = useUserTier();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [weatherData, setWeatherData] = useState<PrecipitationData | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
@@ -121,11 +125,49 @@ const Dashboard = () => {
             </div>
           ) : null}
 
+          {/* Daily SMS Alerts — gated */}
+          {isFree ? (
+            <LockedFeatureCard
+              icon="🔒"
+              headline="Daily SMS Alerts"
+              body="Get a text only when your lawn needs attention — rain incoming, watering day, or season change."
+              className="mt-8"
+            />
+          ) : (
+            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
+              <h2 className="text-lg font-semibold text-foreground mb-2">📱 Daily SMS Alerts</h2>
+              <p className="text-sm text-muted-foreground">SMS alerts are active. You'll receive texts when your lawn needs attention.</p>
+            </div>
+          )}
+
+          {/* 30-Day History — gated */}
+          {isFree ? (
+            <LockedFeatureCard
+              icon="🔒"
+              headline="30-Day Watering History"
+              body="See how your lawn's water needs have changed over the past month."
+              className="mt-6"
+            />
+          ) : (
+            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-6">
+              <h2 className="text-lg font-semibold text-foreground mb-2">📊 30-Day Watering History</h2>
+              <p className="text-sm text-muted-foreground">Your watering history chart will appear here.</p>
+            </div>
+          )}
+
           {/* Lawn Profile Summary — below the result */}
           {profile && (
             <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-foreground">Your Lawn Profile</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-foreground">Your Lawn Profile</h2>
+                  {isFree && (
+                    <Badge variant="secondary" className="text-xs">Free Plan</Badge>
+                  )}
+                  {isPaid && (
+                    <Badge className="text-xs bg-primary/90">Pro</Badge>
+                  )}
+                </div>
                 <button
                   onClick={() => navigate('/onboarding')}
                   className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
@@ -163,6 +205,22 @@ const Dashboard = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Multi-lawn — gated */}
+              {isFree && (
+                <div className="mt-5 pt-5 border-t border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <span>🔒</span>
+                    <span className="text-sm">Multiple lawns available on paid plan</span>
+                  </div>
+                  <a
+                    href="/pricing"
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    Unlock for $24/year
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </div>
