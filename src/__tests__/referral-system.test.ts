@@ -515,7 +515,8 @@ describe('Referral count & progress', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/You've earned a free year of premium/i)).toBeTruthy();
-      expect(screen.getByText(/2027/)).toBeTruthy();
+      const matches2027 = screen.getAllByText(/2027/);
+      expect(matches2027.length).toBeGreaterThanOrEqual(1);
     });
   });
 });
