@@ -151,6 +151,8 @@ export type Database = {
           grass_type: string | null
           id: string
           irrigation_type: string | null
+          last_seasonal_alert_date: string | null
+          last_seasonal_alert_sent: string | null
           lawn_size_acres: number | null
           premium_source: string | null
           premium_until: string | null
@@ -175,6 +177,8 @@ export type Database = {
           grass_type?: string | null
           id: string
           irrigation_type?: string | null
+          last_seasonal_alert_date?: string | null
+          last_seasonal_alert_sent?: string | null
           lawn_size_acres?: number | null
           premium_source?: string | null
           premium_until?: string | null
@@ -199,6 +203,8 @@ export type Database = {
           grass_type?: string | null
           id?: string
           irrigation_type?: string | null
+          last_seasonal_alert_date?: string | null
+          last_seasonal_alert_sent?: string | null
           lawn_size_acres?: number | null
           premium_source?: string | null
           premium_until?: string | null
