@@ -184,6 +184,45 @@ deficit = adjustedTarget − rain (past 5 days) − forecast (5 days)
             </div>
           </section>
 
+          {/* Seasonality Section */}
+          <section className="mb-12">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-3xl">❄️🌾</span>
+              <h2 className="text-2xl font-semibold text-foreground">Smart Enough to Know When to Stop</h2>
+            </div>
+
+            <p className="text-muted-foreground leading-relaxed mb-4">
+              Most watering apps just do the math. ThirstyGrass knows when the math doesn't matter.
+            </p>
+            <p className="text-muted-foreground leading-relaxed mb-6">
+              When temperatures drop and your lawn goes dormant, we switch into seasonal mode automatically — no watering recommendations, no unnecessary alerts. Just a clear signal that your lawn is resting, and a promise that we'll tell you when it's time to start again.
+            </p>
+
+            <h3 className="text-lg font-semibold text-foreground mb-3">How we detect dormancy:</h3>
+            <ul className="space-y-3 text-muted-foreground leading-relaxed mb-6">
+              <li className="flex items-start gap-2">
+                <span className="text-foreground mt-0.5">—</span>
+                <span>We track your <strong>7-day average high temperature</strong> using real forecast data for your ZIP code.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-foreground mt-0.5">—</span>
+                <span>When that average drops below your grass type's dormancy threshold (<strong>45°F</strong> for cool-season grasses like fescue and bluegrass, <strong>55°F</strong> for warm-season grasses like bermuda and zoysia), we switch your dashboard into dormancy mode.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-foreground mt-0.5">—</span>
+                <span>If freezing temps are forecast in the next 5 days, we show a <strong>Frost Risk</strong> alert instead — because watering before a freeze can damage roots.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-foreground mt-0.5">—</span>
+                <span>When spring arrives and your 7-day average climbs back above the threshold, we'll send you a <strong>"time to start watering again"</strong> alert.</span>
+              </li>
+            </ul>
+
+            <p className="text-muted-foreground leading-relaxed">
+              Your lawn is dormant for 4–5 months in New England. We think that's worth being honest about — and worth watching carefully so you don't miss the moment it wakes up.
+            </p>
+          </section>
+
           {/* Section 4 — Directionality */}
           <section className="mb-12">
             <h2 className="text-2xl font-semibold text-foreground mb-4">Why "correct directionality" beats precision</h2>

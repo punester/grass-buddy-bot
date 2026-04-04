@@ -12,6 +12,8 @@ interface OpenMeteoDaily {
   time: string[];
   precipitation_sum: number[];
   et0_fao_evapotranspiration: number[];
+  temperature_2m_max: number[];
+  temperature_2m_min: number[];
 }
 
 // --- Admin tuning parameters (module-scope cache) ---
@@ -69,6 +71,39 @@ async function getTuningParams(): Promise<TuningParams> {
 /** Clear the cached tuning params (e.g. after admin saves new values) */
 export function clearTuningCache() {
   cachedTuning = null;
+}
+
+// --- Celsius to Fahrenheit ---
+function cToF(c: number): number {
+  return c * 9 / 5 + 32;
+}
+
+// --- Seasonal state evaluation ---
+function evaluateSeasonalState(
+  avgHigh7d: number,
+  forecastLow5d: number,
+  grassType: string,
+): { seasonalState: 'ACTIVE' | 'DORMANT' | 'FROST_RISK'; seasonalMessage: string } {
+  const dormancyThreshold =
+    grassType === 'Cool-Season' ? 45 :
+    grassType === 'Warm-Season' ? 55 :
+    50;
+
+  if (forecastLow5d <= 34) {
+    return {
+      seasonalState: 'FROST_RISK',
+      seasonalMessage: 'Frost expected in the next 5 days. Avoid watering — frozen water in soil can damage roots.',
+    };
+  }
+
+  if (avgHigh7d < dormancyThreshold) {
+    return {
+      seasonalState: 'DORMANT',
+      seasonalMessage: `Your lawn is dormant — 7-day average high is ${Math.round(avgHigh7d)}°F, below the ${dormancyThreshold}°F threshold for your grass type. Watering now won't help and may cause harm.`,
+    };
+  }
+
+  return { seasonalState: 'ACTIVE', seasonalMessage: '' };
 }
 
 // --- Recommendation logic helper ---
@@ -141,8 +176,23 @@ export const fetchPrecipitationData = async (
 
         const cachedData = cached.weather_data as unknown as PrecipitationData;
 
-        const { recommendation, recommendationReason, weeklyNeed, deficit } =
-          computeRecommendation(
+        // Re-evaluate seasonal state for this grass type
+        const avgHigh7d = cachedData.avgHigh7d ?? 80;
+        const forecastLow5d = cachedData.forecastLow5d ?? 50;
+        const { seasonalState, seasonalMessage } = evaluateSeasonalState(avgHigh7d, forecastLow5d, grassType);
+
+        let recommendation: 'WATER' | 'MONITOR' | 'SKIP';
+        let recommendationReason: string;
+        let weeklyNeed = cachedData.weeklyNeed;
+        let deficit = cachedData.deficit;
+
+        if (seasonalState !== 'ACTIVE') {
+          recommendation = 'SKIP';
+          recommendationReason = seasonalMessage;
+          weeklyNeed = 0;
+          deficit = 0;
+        } else {
+          const computed = computeRecommendation(
             cachedData.precipitation.day3,
             cachedData.precipitation.day5,
             cachedData.forecast.day5,
@@ -150,6 +200,11 @@ export const fetchPrecipitationData = async (
             grassType,
             tuning,
           );
+          recommendation = computed.recommendation;
+          recommendationReason = computed.recommendationReason;
+          weeklyNeed = computed.weeklyNeed;
+          deficit = computed.deficit;
+        }
 
         const result: PrecipitationData = {
           ...cachedData,
@@ -158,6 +213,11 @@ export const fetchPrecipitationData = async (
           weeklyNeed,
           deficit,
           grassType,
+          avgHigh7d,
+          forecastLow5d,
+          seasonalState,
+          seasonalMessage,
+          seasonalAlert: seasonalState === 'FROST_RISK' ? 'FROST_INCOMING' : null,
         };
 
         await supabase.rpc('log_zip_lookup', {
@@ -187,9 +247,9 @@ export const fetchPrecipitationData = async (
   const { latitude, longitude, name, admin1 } = geoData.results[0] as GeoResult;
   const locationLabel = admin1 ? `${name}, ${admin1}` : name;
 
-  // Step 2 — Fetch weather data
+  // Step 2 — Fetch weather data (now includes temperature)
   const weatherRes = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch`
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch`
   );
   if (!weatherRes.ok) {
     throw new Error(`Weather data request failed (${weatherRes.status})`);
@@ -211,8 +271,32 @@ export const fetchPrecipitationData = async (
     return sum;
   };
 
+  const avgSlice = (arr: number[], start: number, end: number): number => {
+    let sum = 0;
+    let count = 0;
+    for (let i = Math.max(0, start); i < Math.min(arr.length, end); i++) {
+      if (arr[i] != null) {
+        sum += arr[i];
+        count++;
+      }
+    }
+    return count > 0 ? sum / count : 0;
+  };
+
+  const minSlice = (arr: number[], start: number, end: number): number => {
+    let min = Infinity;
+    for (let i = Math.max(0, start); i < Math.min(arr.length, end); i++) {
+      if (arr[i] != null && arr[i] < min) {
+        min = arr[i];
+      }
+    }
+    return min === Infinity ? 0 : min;
+  };
+
   const precip = daily.precipitation_sum;
   const et = daily.et0_fao_evapotranspiration;
+  const tempMax = daily.temperature_2m_max;
+  const tempMin = daily.temperature_2m_min;
 
   const precipDay1 = sumSlice(precip, todayIndex - 1, todayIndex);
   const precipDay3 = sumSlice(precip, todayIndex - 3, todayIndex);
@@ -224,20 +308,55 @@ export const fetchPrecipitationData = async (
 
   const etLoss7d = sumSlice(et, todayIndex - 7, todayIndex) / 25.4;
 
-  const { recommendation, recommendationReason, weeklyNeed, deficit } =
-    computeRecommendation(precipDay3, precipDay5, forecastDay5, etLoss7d, grassType, tuning);
+  // Temperature calculations
+  const avgHigh7dC = avgSlice(tempMax, todayIndex - 7, todayIndex);
+  const forecastLow5dC = minSlice(tempMin, todayIndex, todayIndex + 5);
+  const avgHigh7d = cToF(avgHigh7dC);
+  const forecastLow5d = cToF(forecastLow5dC);
 
-  // Recommended watering day only when WATER
+  // Evaluate seasonal state BEFORE deficit logic
+  const { seasonalState, seasonalMessage } = evaluateSeasonalState(avgHigh7d, forecastLow5d, grassType);
+
+  let recommendation: 'WATER' | 'MONITOR' | 'SKIP';
+  let recommendationReason: string;
+  let weeklyNeed: number;
+  let deficit: number;
   let recommendedWateringDay = -1;
-  if (recommendation === 'WATER') {
-    if (forecastDay1 > 0.3) {
-      recommendedWateringDay = 0;
-    } else if (forecastDay3 - forecastDay1 > 0.5) {
-      recommendedWateringDay = 1;
-    } else {
-      recommendedWateringDay = 2;
+
+  if (seasonalState !== 'ACTIVE') {
+    // Dormant or frost risk — skip deficit entirely
+    recommendation = 'SKIP';
+    recommendationReason = seasonalMessage;
+    weeklyNeed = 0;
+    deficit = 0;
+  } else {
+    // Normal deficit logic
+    const computed = computeRecommendation(precipDay3, precipDay5, forecastDay5, etLoss7d, grassType, tuning);
+    recommendation = computed.recommendation;
+    recommendationReason = computed.recommendationReason;
+    weeklyNeed = computed.weeklyNeed;
+    deficit = computed.deficit;
+
+    // Recommended watering day only when WATER
+    if (recommendation === 'WATER') {
+      if (forecastDay1 > 0.3) {
+        recommendedWateringDay = 0;
+      } else if (forecastDay3 - forecastDay1 > 0.5) {
+        recommendedWateringDay = 1;
+      } else {
+        recommendedWateringDay = 2;
+      }
     }
   }
+
+  // Seasonal alert flags (no sending logic yet)
+  let seasonalAlert: 'DORMANCY_START' | 'DORMANCY_END' | 'FROST_INCOMING' | null = null;
+  if (seasonalState === 'FROST_RISK') {
+    seasonalAlert = 'FROST_INCOMING';
+  }
+  // For DORMANCY_START / DORMANCY_END we'd need yesterday's state comparison;
+  // storing the flag on the result for future email/SMS use
+  // (a more complete implementation would compare against cached previous state)
 
   const result: PrecipitationData = {
     address: `${locationLabel} (${zipCode})`,
@@ -259,6 +378,11 @@ export const fetchPrecipitationData = async (
     weeklyNeed,
     deficit,
     grassType,
+    avgHigh7d,
+    forecastLow5d,
+    seasonalState,
+    seasonalMessage,
+    seasonalAlert,
   };
 
   // Cache the result
