@@ -292,22 +292,6 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {/* Upgrade CTA for free users */}
-              {isFree && (
-                <div className="mt-5 pt-5 border-t border-border flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <span>🔒</span>
-                    <span className="text-sm">Multiple lawns available on paid plan</span>
-                  </div>
-                  <button
-                    onClick={handleUpgrade}
-                    disabled={upgradeLoading}
-                    className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
-                  >
-                    {upgradeLoading ? 'Loading…' : `Unlock for $${annualPrice}/year`}
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
