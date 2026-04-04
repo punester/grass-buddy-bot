@@ -1,8 +1,9 @@
 /**
- * daily-weather-job — Daily ZIP cache refresh + Monday email digest
+ * daily-weather-job — Daily ZIP cache refresh + Monday email digest + seasonal alerts
  *
  * Runs daily at 11:00 UTC (7am ET). Refreshes weather data for all ZIP codes
  * in the profiles table. On Mondays, sends weekly digest emails via Resend.
+ * Every day, checks for seasonal alert triggers and sends one-time milestone emails.
  *
  * Manual trigger: POST with optional JSON body:
  *   { "forceEmail": true, "testZip": "01545" }
@@ -31,6 +32,8 @@ interface Profile {
   grass_type: string | null;
   lawn_size_acres: number | null;
   email_unsubscribed: boolean | null;
+  last_seasonal_alert_sent: string | null;
+  last_seasonal_alert_date: string | null;
 }
 
 interface ZipWeatherResult {
@@ -42,6 +45,8 @@ interface ZipWeatherResult {
   deficit: number;
   recommendation: "WATER" | "MONITOR" | "SKIP";
   recommendation_reason: string;
+  avgHigh7d: number;
+  forecastLow5d: number;
 }
 
 interface TuningParams {
@@ -86,6 +91,12 @@ async function getTuningParams(): Promise<TuningParams> {
   return { ...DEFAULTS };
 }
 
+// ── Helpers ────────────────────────────────────────────
+
+function cToF(c: number): number {
+  return c * 9 / 5 + 32;
+}
+
 // ── Weather fetch ──────────────────────────────────────
 
 async function fetchWeatherForZip(zipCode: string, tuning: TuningParams): Promise<ZipWeatherResult> {
@@ -99,7 +110,7 @@ async function fetchWeatherForZip(zipCode: string, tuning: TuningParams): Promis
   const { latitude, longitude } = geoData.results[0];
 
   const weatherRes = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch`
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch`
   );
   if (!weatherRes.ok) throw new Error(`Weather fetch failed (${weatherRes.status})`);
   const weatherData = await weatherRes.json();
@@ -118,14 +129,37 @@ async function fetchWeatherForZip(zipCode: string, tuning: TuningParams): Promis
     return sum;
   };
 
+  const avgSlice = (arr: number[], start: number, end: number): number => {
+    let sum = 0;
+    let count = 0;
+    for (let i = Math.max(0, start); i < Math.min(arr.length, end); i++) {
+      if (arr[i] != null) { sum += arr[i]; count++; }
+    }
+    return count > 0 ? sum / count : 0;
+  };
+
+  const minSlice = (arr: number[], start: number, end: number): number => {
+    let min = Infinity;
+    for (let i = Math.max(0, start); i < Math.min(arr.length, end); i++) {
+      if (arr[i] != null && arr[i] < min) min = arr[i];
+    }
+    return min === Infinity ? 0 : min;
+  };
+
   const precip = daily.precipitation_sum;
   const et = daily.et0_fao_evapotranspiration;
+  const tempMax = daily.temperature_2m_max;
+  const tempMin = daily.temperature_2m_min;
 
   const rain_3d = sumSlice(precip, todayIndex - 3, todayIndex);
   const rain_5d = sumSlice(precip, todayIndex - 5, todayIndex);
   const forecast_3d = sumSlice(precip, todayIndex, todayIndex + 3);
   const forecast_5d = sumSlice(precip, todayIndex, todayIndex + 5);
   const et_loss_7d = sumSlice(et, todayIndex - 7, todayIndex) / 25.4;
+
+  // Temperature
+  const avgHigh7d = cToF(avgSlice(tempMax, todayIndex - 7, todayIndex));
+  const forecastLow5d = cToF(minSlice(tempMin, todayIndex, todayIndex + 5));
 
   // Default Mixed multiplier for ZIP-level cache
   const deficit = et_loss_7d * tuning.mixed_multiplier - rain_5d - forecast_5d;
@@ -134,7 +168,7 @@ async function fetchWeatherForZip(zipCode: string, tuning: TuningParams): Promis
     rain_3d, deficit, tuning
   );
 
-  return { rain_5d, rain_3d, forecast_5d, forecast_3d, et_loss_7d, deficit, recommendation, recommendation_reason };
+  return { rain_5d, rain_3d, forecast_5d, forecast_3d, et_loss_7d, deficit, recommendation, recommendation_reason, avgHigh7d, forecastLow5d };
 }
 
 function computeRecommendation(
@@ -184,6 +218,186 @@ function personalizeForUser(
     cached.rain_3d, personalDeficit, tuning
   );
   return { recommendation, recommendation_reason, deficit: personalDeficit };
+}
+
+// ── Seasonal state evaluation ─────────────────────────
+
+type SeasonalAlert = "DORMANCY_START" | "DORMANCY_END" | "FROST_INCOMING" | null;
+
+function evaluateSeasonalState(
+  avgHigh7d: number,
+  forecastLow5d: number,
+  grassType: string,
+): { seasonalState: "ACTIVE" | "DORMANT" | "FROST_RISK"; seasonalMessage: string } {
+  const dormancyThreshold =
+    grassType === "Cool-Season" ? 45 :
+    grassType === "Warm-Season" ? 55 : 50;
+
+  if (forecastLow5d <= 34) {
+    return {
+      seasonalState: "FROST_RISK",
+      seasonalMessage: `Frost expected in the next 5 days. Avoid watering — frozen water in soil can damage roots.`,
+    };
+  }
+  if (avgHigh7d < dormancyThreshold) {
+    return {
+      seasonalState: "DORMANT",
+      seasonalMessage: `Your lawn is dormant — 7-day average high is ${Math.round(avgHigh7d)}°F, below the ${dormancyThreshold}°F threshold for your grass type.`,
+    };
+  }
+  return { seasonalState: "ACTIVE", seasonalMessage: "" };
+}
+
+function determineSeasonalAlert(
+  currentState: "ACTIVE" | "DORMANT" | "FROST_RISK",
+  lastAlertSent: string | null,
+  lastAlertDate: string | null,
+): SeasonalAlert {
+  const today = new Date().toISOString().slice(0, 10);
+
+  // How many days since last alert
+  let daysSinceLastAlert = 999;
+  if (lastAlertDate) {
+    const last = new Date(lastAlertDate);
+    const now = new Date(today);
+    daysSinceLastAlert = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  if (currentState === "FROST_RISK") {
+    // Re-alert if last alert wasn't FROST_INCOMING or was >7 days ago
+    if (lastAlertSent !== "FROST_INCOMING" || daysSinceLastAlert > 7) {
+      return "FROST_INCOMING";
+    }
+    return null;
+  }
+
+  if (currentState === "DORMANT") {
+    if (lastAlertSent !== "DORMANCY_START" || daysSinceLastAlert > 7) {
+      return "DORMANCY_START";
+    }
+    return null;
+  }
+
+  // ACTIVE
+  if (currentState === "ACTIVE" && (lastAlertSent === "DORMANCY_START" || lastAlertSent === "FROST_INCOMING")) {
+    return "DORMANCY_END";
+  }
+
+  return null;
+}
+
+// ── Seasonal alert email HTML builders ────────────────
+
+function buildSeasonalEmailHtml(
+  alertType: SeasonalAlert,
+  grassType: string,
+  avgHigh7d: number,
+  forecastLow5d: number,
+  dashboardUrl: string,
+  unsubscribeUrl: string,
+): string {
+  const dormancyThreshold =
+    grassType === "Cool-Season" ? 45 :
+    grassType === "Warm-Season" ? 55 : 50;
+
+  let emoji = "";
+  let heading = "";
+  let bodyContent = "";
+
+  if (alertType === "DORMANCY_START") {
+    emoji = "🌾";
+    heading = "Your lawn is going dormant";
+    bodyContent = `
+      <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+        Based on temperature data for your ZIP code, your lawn has entered dormancy — the 7-day average high has dropped below ${dormancyThreshold}°F for ${grassType} grass.
+      </p>
+      <p style="margin:0 0 8px;font-size:14px;color:#374151;font-weight:bold;">What this means:</p>
+      <ul style="margin:0 0 16px;padding-left:20px;font-size:14px;color:#374151;line-height:1.8;">
+        <li>No watering needed until spring</li>
+        <li>We'll keep watching your forecast</li>
+        <li>You'll get an alert the moment it's time to start again</li>
+      </ul>
+      <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.5;">
+        ThirstyGrass is still on watch. Enjoy the off-season.
+      </p>`;
+  } else if (alertType === "DORMANCY_END") {
+    emoji = "🌱";
+    heading = "Time to start watering again";
+    bodyContent = `
+      <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+        Spring is here for your lawn. The 7-day average high for your ZIP code has climbed back above ${dormancyThreshold}°F — your ${grassType} grass is waking up.
+      </p>
+      <p style="margin:0;font-size:14px;color:#374151;line-height:1.5;">
+        Log in to see your first watering recommendation of the season.
+      </p>`;
+  } else if (alertType === "FROST_INCOMING") {
+    emoji = "❄️";
+    heading = "Frost alert for your lawn";
+    bodyContent = `
+      <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+        Freezing temperatures are forecast in your area in the next 5 days (low of ${Math.round(forecastLow5d)}°F).
+      </p>
+      <p style="margin:0;font-size:14px;color:#374151;line-height:1.5;">
+        Skip watering until the frost window passes — water in the soil can freeze and damage grass roots. We'll update your recommendation daily.
+      </p>`;
+  }
+
+  const bannerColor = alertType === "FROST_INCOMING" ? "#93c5fd" : "#9ca3af";
+  const textColor = "#374151";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;">
+    <tr><td align="center" style="padding:30px 15px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:12px;overflow:hidden;">
+        <tr><td style="padding:24px 30px;text-align:center;">
+          <span style="font-size:22px;font-weight:bold;color:#16a34a;">ThirstyGrass</span>
+          <p style="margin:6px 0 0;font-size:13px;color:#9ca3af;">Seasonal alert</p>
+        </td></tr>
+        <tr><td style="padding:0 30px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr><td style="background-color:${bannerColor};border-radius:10px;padding:22px 20px;text-align:center;">
+              <span style="font-size:32px;">${emoji}</span><br>
+              <span style="font-size:24px;font-weight:bold;color:${textColor};letter-spacing:1px;">${heading}</span>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:20px 30px;">
+          ${bodyContent}
+        </td></tr>
+        <tr><td style="padding:0 30px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:8px;">
+            <tr><td style="padding:12px 16px;">
+              <span style="font-size:12px;color:#6b7280;">7-day avg high: <strong>${Math.round(avgHigh7d)}°F</strong></span><br>
+              <span style="font-size:12px;color:#6b7280;">Forecast low: <strong>${Math.round(forecastLow5d)}°F</strong></span><br>
+              <span style="font-size:12px;color:#6b7280;">Grass type: <strong>${grassType}</strong> (threshold: ${dormancyThreshold}°F)</span>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:20px 30px;text-align:center;">
+          <a href="${dashboardUrl}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-size:14px;font-weight:bold;padding:12px 24px;border-radius:6px;text-decoration:none;">View My Dashboard</a>
+        </td></tr>
+        <tr><td style="padding:20px 30px;text-align:center;border-top:1px solid #e5e7eb;">
+          <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">You're receiving this because you have a ThirstyGrass account.</p>
+          <a href="${unsubscribeUrl}" style="font-size:12px;color:#9ca3af;text-decoration:underline;">Unsubscribe</a>
+          <p style="margin:10px 0 0;font-size:11px;color:#d1d5db;">© ${new Date().getFullYear()} ThirstyGrass by 110 Labs</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+function getSeasonalSubject(alertType: SeasonalAlert): string {
+  switch (alertType) {
+    case "DORMANCY_START": return "Your lawn is going dormant 🌾";
+    case "DORMANCY_END": return "Time to start watering again 🌱";
+    case "FROST_INCOMING": return "Frost alert for your lawn ❄️";
+    default: return "Seasonal update from ThirstyGrass";
+  }
 }
 
 // ── Lawn care tips ─────────────────────────────────────
@@ -325,6 +539,95 @@ function buildEmailHtml(
 </html>`;
 }
 
+// ── Send seasonal alert email ─────────────────────────
+
+async function sendSeasonalAlert(
+  profile: Profile,
+  alertType: SeasonalAlert,
+  cached: ZipWeatherResult,
+): Promise<boolean> {
+  if (!alertType) return false;
+
+  const grassType = profile.grass_type || "Mixed";
+  const unsubscribeUrl = `https://thirstygrass.com/email-unsubscribe?user_id=${profile.id}`;
+
+  // Generate magic link
+  let dashboardUrl = "https://thirstygrass.com/dashboard";
+  try {
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: "magiclink",
+      email: profile.email,
+      options: { redirectTo: "https://thirstygrass.com/dashboard" },
+    });
+    if (!linkError && linkData?.properties?.action_link) {
+      dashboardUrl = linkData.properties.action_link;
+    }
+  } catch { /* fallback URL */ }
+
+  const emailHtml = buildSeasonalEmailHtml(
+    alertType, grassType, cached.avgHigh7d, cached.forecastLow5d,
+    dashboardUrl, unsubscribeUrl
+  );
+  const subject = getSeasonalSubject(alertType);
+
+  const resendRes = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+    },
+    body: JSON.stringify({
+      from: "ThirstyGrass <hello@thirstygrass.com>",
+      reply_to: "hello@thirstygrass.com",
+      to: [profile.email],
+      subject,
+      html: emailHtml,
+    }),
+  });
+
+  const resendBody = await resendRes.json().catch(() => ({}));
+  const templateName = `seasonal-${alertType.toLowerCase().replace(/_/g, "-")}`;
+
+  if (resendRes.ok) {
+    await supabase.from("email_send_log").insert({
+      template_name: templateName,
+      recipient_email: profile.email,
+      status: "sent",
+      message_id: resendBody?.id || null,
+      metadata: {
+        alert_type: alertType,
+        zip_code: profile.zip_code,
+        grass_type: grassType,
+        avg_high_7d: cached.avgHigh7d,
+        forecast_low_5d: cached.forecastLow5d,
+      },
+    });
+
+    // Update profile tracking
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase
+      .from("profiles")
+      .update({
+        last_seasonal_alert_sent: alertType,
+        last_seasonal_alert_date: today,
+      })
+      .eq("id", profile.id);
+
+    return true;
+  } else {
+    const errText = JSON.stringify(resendBody);
+    console.error(`Seasonal alert email error for ${profile.email}: ${errText}`);
+    await supabase.from("email_send_log").insert({
+      template_name: templateName,
+      recipient_email: profile.email,
+      status: "failed",
+      error_message: errText,
+      metadata: { alert_type: alertType, zip_code: profile.zip_code },
+    });
+    return false;
+  }
+}
+
 // ── Main Handler ───────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -383,7 +686,7 @@ Deno.serve(async (req) => {
         const result = await fetchWeatherForZip(zip, tuning);
         zipCache.set(zip, result);
 
-        // Upsert into zip_cache (new columns + existing weather_data blob)
+        // Upsert into zip_cache
         const { error: upsertError } = await supabase
           .from("zip_cache")
           .upsert({
@@ -407,6 +710,8 @@ Deno.serve(async (req) => {
               lastUpdated: new Date().toLocaleString(),
               address: zip,
               grassType: "Mixed",
+              avgHigh7d: result.avgHigh7d,
+              forecastLow5d: result.forecastLow5d,
             },
           }, { onConflict: "zip_code" });
 
@@ -427,7 +732,73 @@ Deno.serve(async (req) => {
 
     console.log(`Cache refresh done. Processed: ${zipsProcessed}, Errors: ${zipErrors}`);
 
-    // ── STEP 5: Check if Monday (ET timezone) ────────
+    // ── STEP 5: Fetch ALL profiles for seasonal alerts ──
+    // Seasonal alerts run every day, not just Mondays
+    let allProfilesFull: Profile[] = [];
+    {
+      let offset = 0;
+      const pageSize = 500;
+      while (true) {
+        let query = supabase
+          .from("profiles")
+          .select("id, email, zip_code, grass_type, lawn_size_acres, email_unsubscribed, last_seasonal_alert_sent, last_seasonal_alert_date")
+          .not("zip_code", "is", null)
+          .not("email", "is", null);
+
+        if (testZip) {
+          query = query.eq("zip_code", testZip);
+        }
+
+        const { data: profiles, error } = await query.range(offset, offset + pageSize - 1);
+        if (error) throw new Error(`DB query failed: ${error.message}`);
+        if (!profiles || profiles.length === 0) break;
+
+        const eligible = profiles.filter(
+          (p: Profile) => !p.email_unsubscribed && p.zip_code && p.email
+        );
+        allProfilesFull = allProfilesFull.concat(eligible);
+        if (profiles.length < pageSize) break;
+        offset += pageSize;
+      }
+    }
+
+    // ── STEP 5b: Send seasonal alert emails ─────────
+    let seasonalSent = 0;
+    let seasonalErrors = 0;
+
+    for (const profile of allProfilesFull) {
+      try {
+        const cached = zipCache.get(profile.zip_code);
+        if (!cached) continue;
+
+        const grassType = profile.grass_type || "Mixed";
+        const { seasonalState } = evaluateSeasonalState(cached.avgHigh7d, cached.forecastLow5d, grassType);
+
+        const alertType = determineSeasonalAlert(
+          seasonalState,
+          profile.last_seasonal_alert_sent,
+          profile.last_seasonal_alert_date,
+        );
+
+        if (alertType) {
+          console.log(`Sending ${alertType} alert to ${profile.email}`);
+          const success = await sendSeasonalAlert(profile, alertType, cached);
+          if (success) {
+            seasonalSent++;
+          } else {
+            seasonalErrors++;
+          }
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      } catch (err) {
+        console.error(`Seasonal alert error for ${profile.email}:`, err);
+        seasonalErrors++;
+      }
+    }
+
+    console.log(`Seasonal alerts: sent=${seasonalSent}, errors=${seasonalErrors}`);
+
+    // ── STEP 6: Check if Monday (ET timezone) ────────
     const now = new Date();
     const etFormatter = new Intl.DateTimeFormat("en-US", {
       timeZone: "America/New_York",
@@ -437,52 +808,24 @@ Deno.serve(async (req) => {
     const isMonday = dayOfWeek === "Monday";
 
     if (!isMonday && !forceEmail) {
-      console.log(`Today is ${dayOfWeek} — skipping email send. Cache refresh complete.`);
+      console.log(`Today is ${dayOfWeek} — skipping weekly digest. Cache refresh + seasonal alerts complete.`);
       return new Response(
         JSON.stringify({
           success: true,
-          mode: "cache_only",
+          mode: "cache_and_seasonal",
           zipsProcessed,
           zipErrors,
+          seasonalSent,
+          seasonalErrors,
           day: dayOfWeek,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ── STEP 6: Fetch profiles for email send ────────
+    // ── STEP 7: Send weekly digest emails ────────────
     console.log(forceEmail ? "Force email mode — sending regardless of day" : "It's Monday — sending weekly digest");
 
-    let allProfiles: Profile[] = [];
-    let offset = 0;
-    const pageSize = 500;
-
-    while (true) {
-      let query = supabase
-        .from("profiles")
-        .select("id, email, zip_code, grass_type, lawn_size_acres, email_unsubscribed")
-        .not("zip_code", "is", null)
-        .not("email", "is", null);
-
-      if (testZip) {
-        query = query.eq("zip_code", testZip);
-      }
-
-      const { data: profiles, error } = await query.range(offset, offset + pageSize - 1);
-      if (error) throw new Error(`DB query failed: ${error.message}`);
-      if (!profiles || profiles.length === 0) break;
-
-      const eligible = profiles.filter(
-        (p: Profile) => !p.email_unsubscribed && p.zip_code && p.email
-      );
-      allProfiles = allProfiles.concat(eligible);
-      if (profiles.length < pageSize) break;
-      offset += pageSize;
-    }
-
-    console.log(`Sending emails to ${allProfiles.length} eligible users`);
-
-    // ── STEP 7: Send emails ──────────────────────────
     const tip = getTipOfTheWeek();
     const fallbackDashboardUrl = "https://thirstygrass.com/dashboard";
     let sent = 0;
@@ -493,7 +836,7 @@ Deno.serve(async (req) => {
       SKIP: "No watering needed this week ✅",
     };
 
-    for (const profile of allProfiles) {
+    for (const profile of allProfilesFull) {
       try {
         // Get cached ZIP data
         let cached = zipCache.get(profile.zip_code);
@@ -516,6 +859,8 @@ Deno.serve(async (req) => {
             deficit: Number(row.deficit),
             recommendation: row.recommendation as "WATER" | "MONITOR" | "SKIP",
             recommendation_reason: row.recommendation_reason || "",
+            avgHigh7d: 80,
+            forecastLow5d: 50,
           };
         }
 
@@ -524,7 +869,7 @@ Deno.serve(async (req) => {
         const narrative = generateNarrative(cached);
         const unsubscribeUrl = `https://thirstygrass.com/email-unsubscribe?user_id=${profile.id}`;
 
-        // Generate magic link for one-click login (24h expiry)
+        // Generate magic link
         let dashboardUrl = fallbackDashboardUrl;
         try {
           const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
@@ -567,7 +912,6 @@ Deno.serve(async (req) => {
         const resendBody = await resendRes.json().catch(() => ({}));
         if (resendRes.ok) {
           sent++;
-          // Log successful send
           await supabase.from("email_send_log").insert({
             template_name: "weekly-digest",
             recipient_email: profile.email,
@@ -613,7 +957,9 @@ Deno.serve(async (req) => {
       zipErrors,
       emailsSent: sent,
       emailErrors,
-      totalEligible: allProfiles.length,
+      seasonalSent,
+      seasonalErrors,
+      totalEligible: allProfilesFull.length,
     };
     console.log("Job complete.", JSON.stringify(summary));
 
