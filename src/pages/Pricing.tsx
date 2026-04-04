@@ -45,7 +45,7 @@ const Pricing = () => {
     'Everything in Free',
     'Daily SMS alerts (condition-triggered)',
     'Frost & dormancy alerts',
-    'Multi-lawn support',
+    
     '30-day watering history',
   ];
 
