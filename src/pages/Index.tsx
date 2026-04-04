@@ -125,6 +125,45 @@ const Index = () => {
           </div>
         </section>
         
+        {/* Seasonal Awareness Section */}
+        <section className="py-20 bg-white">
+          <div className="container mx-auto px-6">
+            <div className="max-w-3xl mx-auto">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-3xl">❄️🌾</span>
+                <h2 className="text-3xl font-bold text-gray-900">Smart Enough to Know When to Stop</h2>
+              </div>
+              <p className="text-lg text-gray-600 mb-6">
+                Most watering apps just do the math. ThirstyGrass knows when the math doesn't matter.
+              </p>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                When temperatures drop and your lawn goes dormant, we switch into seasonal mode automatically — no watering recommendations, no unnecessary alerts. Just a clear signal that your lawn is resting, and a promise that we'll tell you when it's time to start again.
+              </p>
+              <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+                <h3 className="font-semibold text-gray-900 mb-4">How we detect dormancy:</h3>
+                <ul className="space-y-3 text-gray-600">
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-900 mt-0.5">—</span>
+                    <span>We track your <strong>7-day average high temperature</strong> using real forecast data for your ZIP code.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-900 mt-0.5">—</span>
+                    <span>When that average drops below your grass type's dormancy threshold (<strong>45°F</strong> for cool-season, <strong>55°F</strong> for warm-season), we switch your dashboard into dormancy mode.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-900 mt-0.5">—</span>
+                    <span>If freezing temps are forecast, we show a <strong>Frost Risk</strong> alert — because watering before a freeze can damage roots.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-gray-900 mt-0.5">—</span>
+                    <span>When spring arrives, we'll send you a <strong>"time to start watering again"</strong> alert.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+        
         {/* Benefits Section */}
         <section id="about" className="py-20">
           <div className="container mx-auto px-6">
