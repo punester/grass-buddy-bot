@@ -14,7 +14,7 @@ import AdminTuning from '@/components/admin/AdminTuning';
 import AdminReferrals from '@/components/admin/AdminReferrals';
 import AdminEmailSystem from '@/components/admin/AdminEmailSystem';
 
-const ADMIN_EMAILS = ['admin@110labs.com', 'pun279@gmail.com'];
+const ADMIN_EMAILS = ['punit@110labs.com', 'pun279@gmail.com'];
 
 const Admin = () => {
   const { user, loading } = useAuth();

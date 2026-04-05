@@ -3,7 +3,7 @@ import { Droplets } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
-const ADMIN_EMAILS = ['admin@110labs.com', 'pun279@gmail.com'];
+const ADMIN_EMAILS = ['punit@110labs.com', 'pun279@gmail.com'];
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
