@@ -765,6 +765,7 @@ Deno.serve(async (req) => {
     // ── STEP 5b: Send seasonal alert emails ─────────
     let seasonalSent = 0;
     let seasonalErrors = 0;
+    const seasonalAlertedUserIds = new Set<string>();
 
     for (const profile of allProfilesFull) {
       try {
@@ -785,6 +786,7 @@ Deno.serve(async (req) => {
           const success = await sendSeasonalAlert(profile, alertType, cached);
           if (success) {
             seasonalSent++;
+            seasonalAlertedUserIds.add(profile.id);
           } else {
             seasonalErrors++;
           }
