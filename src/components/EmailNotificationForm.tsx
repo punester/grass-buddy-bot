@@ -76,19 +76,8 @@ const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({
         throw new Error(otpError.message);
       }
 
-      // 2. Send a sample weekly digest email so they see what they'll get
-      if (weatherData && zipCode) {
-        try {
-          await supabase.functions.invoke('daily-weather-job', {
-            body: {
-              forceEmail: true,
-              testZip: zipCode,
-            },
-          });
-        } catch (digestErr) {
-          console.error('Sample digest send failed (non-critical):', digestErr);
-        }
-      }
+      // Note: Weekly digest will be sent on Mondays via the cron job.
+      // No sample digest is triggered here to avoid sending to other users on the same ZIP.
 
       toast.success(
         'Check your inbox! We sent a magic link to sign in and a sample of your weekly watering report.',
