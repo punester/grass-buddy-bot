@@ -389,6 +389,7 @@ export type Database = {
         Args: { p_zip_code: string }
         Returns: undefined
       }
+      is_admin: { Args: never; Returns: boolean }
       log_zip_lookup: {
         Args: {
           p_recommendation: string
