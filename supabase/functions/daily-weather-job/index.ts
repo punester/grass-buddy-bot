@@ -765,6 +765,7 @@ Deno.serve(async (req) => {
     // ── STEP 5b: Send seasonal alert emails ─────────
     let seasonalSent = 0;
     let seasonalErrors = 0;
+    const seasonalAlertedUserIds = new Set<string>();
 
     for (const profile of allProfilesFull) {
       try {
@@ -785,6 +786,7 @@ Deno.serve(async (req) => {
           const success = await sendSeasonalAlert(profile, alertType, cached);
           if (success) {
             seasonalSent++;
+            seasonalAlertedUserIds.add(profile.id);
           } else {
             seasonalErrors++;
           }
@@ -838,6 +840,11 @@ Deno.serve(async (req) => {
 
     for (const profile of allProfilesFull) {
       try {
+        // Skip weekly digest if user already received a seasonal alert today
+        if (seasonalAlertedUserIds.has(profile.id)) {
+          console.log(`Skipping weekly digest for ${profile.email} — seasonal alert already sent`);
+          continue;
+        }
         // Get cached ZIP data
         let cached = zipCache.get(profile.zip_code);
         if (!cached) {
