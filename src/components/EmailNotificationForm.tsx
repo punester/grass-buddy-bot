@@ -80,7 +80,7 @@ const EmailNotificationForm: React.FC<EmailNotificationFormProps> = ({
       // No sample digest is triggered here to avoid sending to other users on the same ZIP.
 
       toast.success(
-        'Check your inbox! We sent a magic link to sign in and a sample of your weekly watering report.',
+        'Check your inbox! We sent a magic link to sign in. You\'ll receive your first weekly watering report on Monday.',
         { duration: 8000 }
       );
       setEmail('');
