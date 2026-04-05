@@ -31,7 +31,7 @@ const DashboardFeedback: React.FC<DashboardFeedbackProps> = ({ profile, weatherD
       await supabase.functions.invoke('send-transactional-email', {
         body: {
           templateName: 'user-feedback',
-          recipientEmail: 'punit@110labs.com',
+          recipientEmail: 'hello@thirstygrass.com',
           idempotencyKey: `feedback-${user.id}-${Date.now()}`,
           templateData: {
             userEmail: user.email,
