@@ -76,7 +76,7 @@ const AdminPricing = () => {
             className="w-full max-w-[360px] px-4 py-2 rounded-lg border border-input bg-background text-foreground"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Shown on Privacy, Terms, Contact pages, and Footer. Admin email (admin@110labs.com) is separate.
+            Shown on Privacy, Terms, Contact pages, and Footer. Admin email (punit@110labs.com) is separate.
           </p>
         </div>
         <Button onClick={handleSave} disabled={saving} size="sm">

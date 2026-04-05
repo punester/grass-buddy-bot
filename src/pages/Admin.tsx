@@ -14,7 +14,7 @@ import AdminTuning from '@/components/admin/AdminTuning';
 import AdminReferrals from '@/components/admin/AdminReferrals';
 import AdminEmailSystem from '@/components/admin/AdminEmailSystem';
 
-const ADMIN_EMAILS = ['admin@110labs.com', 'pun279@gmail.com'];
+const ADMIN_EMAILS = ['punit@110labs.com', 'pun279@gmail.com'];
 
 const Admin = () => {
   const { user, loading } = useAuth();
@@ -38,15 +38,15 @@ const Admin = () => {
         <div className="container mx-auto px-4 max-w-6xl">
           <h1 className="text-2xl font-bold text-foreground mb-6">ThirstyGrass Admin</h1>
           <Tabs defaultValue="analytics" className="w-full">
-            <TabsList className="grid w-full grid-cols-8 mb-6">
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
-              <TabsTrigger value="users">Users</TabsTrigger>
-              <TabsTrigger value="referrals">Referrals</TabsTrigger>
-              <TabsTrigger value="billing">Billing</TabsTrigger>
-              <TabsTrigger value="email">Email</TabsTrigger>
-              <TabsTrigger value="cache">Cache</TabsTrigger>
-              <TabsTrigger value="pricing">Pricing</TabsTrigger>
-              <TabsTrigger value="tuning">Tuning</TabsTrigger>
+            <TabsList className="flex flex-wrap h-auto gap-1 mb-6">
+              <TabsTrigger value="analytics" className="text-xs sm:text-sm">Analytics</TabsTrigger>
+              <TabsTrigger value="users" className="text-xs sm:text-sm">Users</TabsTrigger>
+              <TabsTrigger value="referrals" className="text-xs sm:text-sm">Referrals</TabsTrigger>
+              <TabsTrigger value="billing" className="text-xs sm:text-sm">Billing</TabsTrigger>
+              <TabsTrigger value="email" className="text-xs sm:text-sm">Email</TabsTrigger>
+              <TabsTrigger value="cache" className="text-xs sm:text-sm">Cache</TabsTrigger>
+              <TabsTrigger value="pricing" className="text-xs sm:text-sm">Pricing</TabsTrigger>
+              <TabsTrigger value="tuning" className="text-xs sm:text-sm">Tuning</TabsTrigger>
             </TabsList>
             <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
             <TabsContent value="users"><AdminUsers /></TabsContent>
