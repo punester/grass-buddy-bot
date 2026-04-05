@@ -14,20 +14,21 @@ import AdminTuning from '@/components/admin/AdminTuning';
 import AdminReferrals from '@/components/admin/AdminReferrals';
 import AdminEmailSystem from '@/components/admin/AdminEmailSystem';
 
-const ADMIN_EMAIL = 'admin@110labs.com';
+const ADMIN_EMAILS = ['admin@110labs.com', 'pun279@gmail.com'];
 
 const Admin = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = user && ADMIN_EMAILS.includes(user.email ?? '');
 
   useEffect(() => {
     if (loading) return;
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!isAdmin) {
       navigate('/');
     }
-  }, [user, loading, navigate]);
+  }, [isAdmin, loading, navigate]);
 
-  if (loading || !user || user.email !== ADMIN_EMAIL) return null;
+  if (loading || !isAdmin) return null;
 
   return (
     <div className="min-h-screen flex flex-col">
