@@ -56,7 +56,7 @@ export const template = {
   component: UserFeedbackEmail,
   subject: (data: Record<string, any>) =>
     `ThirstyGrass Feedback — ${data.userEmail || 'Unknown user'}`,
-  to: 'punit@110labs.com',
+  to: 'hello@thirstygrass.com',
   displayName: 'User feedback',
   previewData: {
     userEmail: 'user@example.com',

@@ -41,7 +41,7 @@ const Contact: React.FC = () => {
       await supabase.functions.invoke('send-transactional-email', {
         body: {
           templateName: 'contact-admin-notification',
-          recipientEmail: 'punit@110labs.com',
+          recipientEmail: 'hello@thirstygrass.com',
           idempotencyKey: `contact-admin-${submissionId}`,
           templateData: { name: name.trim(), email: email.trim(), message: message.trim() },
         },
