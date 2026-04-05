@@ -35,7 +35,7 @@ const ContactAdminNotificationEmail = ({ name, email, message }: ContactAdminNot
 export const template = {
   component: ContactAdminNotificationEmail,
   subject: (data: Record<string, any>) => `New contact form submission from ${data.name || 'someone'}`,
-  to: 'admin@110labs.com',
+  to: 'punit@110labs.com',
   displayName: 'Contact admin notification',
   previewData: { name: 'Jane Doe', email: 'jane@example.com', message: 'I have a question about my lawn watering schedule.' },
 } satisfies TemplateEntry
