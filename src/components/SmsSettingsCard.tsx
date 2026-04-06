@@ -245,7 +245,7 @@ const SmsSettingsCard: React.FC<SmsSettingsCardProps> = ({ pendingPhone, onPendi
   }
 
   // Paid — State C: Paused
-  if (smsProfile.sms_phone && !smsProfile.sms_opted_in) {
+  if (smsProfile.sms_phone && smsProfile.sms_phone_verified && !smsProfile.sms_opted_in) {
     return (
       <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
         <div className="flex items-center gap-2 mb-2">
