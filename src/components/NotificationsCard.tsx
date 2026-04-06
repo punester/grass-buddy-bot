@@ -58,9 +58,9 @@ const NotificationsCard: React.FC = () => {
     return `+${digits}`;
   };
 
-  const handleSendCode = async () => {
+  const handleSendCode = async (phoneOverride?: string) => {
     setError('');
-    const e164 = formatToE164(phone);
+    const e164 = formatToE164(phoneOverride || phone);
     if (!/^\+[1-9]\d{6,14}$/.test(e164)) {
       setError('Enter a valid phone number (e.g. +16175551234)');
       return;
@@ -194,8 +194,9 @@ const NotificationsCard: React.FC = () => {
                 {error && <p className="text-xs text-destructive">{error}</p>}
                 <button
                   onClick={() => {
+                    const effectivePhone = phone || prefilledPhone || '';
                     if (!phone && prefilledPhone) setPhone(prefilledPhone);
-                    handleSendCode();
+                    handleSendCode(effectivePhone);
                   }}
                   disabled={loading || !(phone.trim() || prefilledPhone)}
                   className="w-full px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
