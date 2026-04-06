@@ -222,6 +222,20 @@ function personalizeForUser(
   tuning: TuningParams
 ): { recommendation: "WATER" | "MONITOR" | "SKIP"; recommendation_reason: string; deficit: number } {
   const gt = grassType || "Mixed";
+
+  // Check seasonal state FIRST — override deficit logic if dormant/frost
+  const { seasonalState, seasonalMessage } = evaluateSeasonalState(
+    cached.avgHigh7d, cached.forecastLow5d, gt
+  );
+
+  if (seasonalState !== "ACTIVE") {
+    return {
+      recommendation: "SKIP",
+      recommendation_reason: seasonalMessage,
+      deficit: 0,
+    };
+  }
+
   const multiplier =
     gt === "Cool-Season" ? tuning.cool_season_multiplier :
     gt === "Warm-Season" ? tuning.warm_season_multiplier :
