@@ -279,10 +279,11 @@ const Onboarding = () => {
                 <input
                   type="tel"
                   value={smsPhone}
-                  onChange={(e) => setSmsPhone(e.target.value)}
+                  onChange={(e) => { setSmsPhone(e.target.value); setPhoneError(''); }}
                   placeholder="+1 (617) 555-1234"
-                  className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all mb-2"
+                  className={`w-full px-4 py-2.5 rounded-lg border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all mb-1 ${phoneError ? 'border-destructive' : 'border-input'}`}
                 />
+                {phoneError && <p className="text-sm text-destructive mb-1">{phoneError}</p>}
                 <div className="flex items-start gap-2 mb-1">
                   <input
                     type="checkbox"
