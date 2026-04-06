@@ -14,7 +14,7 @@ const TermsOfService = () => {
       <main className="flex-1 pt-28 pb-16">
         <div className="container mx-auto px-4 max-w-3xl prose prose-gray">
           <h1 className="text-3xl font-bold text-foreground mb-2">Terms of Service</h1>
-          <p className="text-sm text-muted-foreground mb-8">Effective Date: April 3, 2026</p>
+          <p className="text-sm text-muted-foreground mb-8">Effective Date: April 6, 2026</p>
 
           <h2 className="text-xl font-semibold text-foreground mt-8 mb-3">Acceptance</h2>
           <p className="text-muted-foreground mb-4">
@@ -23,8 +23,33 @@ const TermsOfService = () => {
 
           <h2 className="text-xl font-semibold text-foreground mt-8 mb-3">Service Description</h2>
           <p className="text-muted-foreground mb-4">
-            ThirstyGrass provides lawn watering recommendations based on weather data. The service is provided as-is with no guarantee of accuracy.
+            ThirstyGrass provides personalized lawn watering recommendations based on real-time weather data for your ZIP code. The service includes email notifications and optional SMS text message alerts about watering schedules, seasonal dormancy, and frost warnings.
           </p>
+
+          <h2 className="text-xl font-semibold text-foreground mt-8 mb-3">SMS/Text Messaging Terms</h2>
+          <p className="text-muted-foreground mb-4">
+            By opting in to SMS notifications from ThirstyGrass, you agree to the following:
+          </p>
+          <ul className="list-disc pl-6 text-muted-foreground mb-4 space-y-2">
+            <li>
+              <strong>Program description:</strong> ThirstyGrass sends automated text messages with lawn watering recommendations, seasonal alerts (dormancy start/end), and frost warnings based on weather conditions in your area.
+            </li>
+            <li>
+              <strong>Opt-out:</strong> <span className="font-bold">You can cancel SMS notifications at any time by texting STOP to the number from which you received messages. After sending STOP, you will receive a confirmation message and will no longer receive SMS messages from ThirstyGrass. You may re-subscribe at any time through your dashboard.</span>
+            </li>
+            <li>
+              <strong>Help:</strong> If you are experiencing issues with the messaging program, reply with the keyword <strong>HELP</strong> for assistance, or contact us directly at <a href={`mailto:${publicEmail}`} className="text-primary hover:underline">{publicEmail}</a>.
+            </li>
+            <li>
+              <strong>Carriers:</strong> Carriers are not liable for delayed or undelivered messages.
+            </li>
+            <li>
+              <strong>Message frequency:</strong> You will receive up to 7 messages per week (daily watering alerts plus occasional seasonal notifications). Message and data rates may apply. Contact your wireless provider for details about your text plan.
+            </li>
+            <li>
+              <strong>Privacy:</strong> Your phone number is collected solely to deliver ThirstyGrass alerts. It is not shared with third parties for marketing purposes. See our <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a> for full details.
+            </li>
+          </ul>
 
           <h2 className="text-xl font-semibold text-foreground mt-8 mb-3">Disclaimer of Warranties</h2>
           <p className="text-muted-foreground mb-4">
