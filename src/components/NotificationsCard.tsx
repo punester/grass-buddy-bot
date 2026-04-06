@@ -194,7 +194,15 @@ const NotificationsCard: React.FC = () => {
                 {error && <p className="text-xs text-destructive">{error}</p>}
                 <button
                   onClick={() => {
+                    const effectivePhone = phone || prefilledPhone || '';
                     if (!phone && prefilledPhone) setPhone(prefilledPhone);
+                    // Use effective phone directly to avoid stale state
+                    const e164 = formatToE164(effectivePhone);
+                    if (!/^\+[1-9]\d{6,14}$/.test(e164)) {
+                      setError('Enter a valid phone number (e.g. +16175551234)');
+                      return;
+                    }
+                    setPhone(effectivePhone);
                     handleSendCode();
                   }}
                   disabled={loading || !(phone.trim() || prefilledPhone)}
