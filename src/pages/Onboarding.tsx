@@ -25,6 +25,14 @@ const IRRIGATION_TYPES = [
   'None',
 ];
 
+const formatPhoneE164 = (input: string): string => {
+  const digits = input.replace(/\D/g, '');
+  if (digits.startsWith('1') && digits.length === 11) return `+${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (input.startsWith('+')) return input.replace(/[^\d+]/g, '');
+  return `+${digits}`;
+};
+
 const Onboarding = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
