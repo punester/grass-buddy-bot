@@ -22,6 +22,7 @@ interface SmsSettingsCardProps {
 const SmsSettingsCard: React.FC<SmsSettingsCardProps> = ({ pendingPhone, onPendingPhoneHandled }) => {
   const { user } = useAuth();
   const { isFree } = useUserTier();
+  const navigate = useNavigate();
   const [smsProfile, setSmsProfile] = useState<SmsProfile | null>(null);
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
