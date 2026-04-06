@@ -28,6 +28,8 @@ interface WeatherData {
   weeklyNeed?: number
   deficit?: number
   grassType?: string
+  seasonalAlert?: string
+  seasonalMessage?: string
 }
 
 interface SignupEmailProps {
