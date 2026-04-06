@@ -11,6 +11,7 @@ import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Unsubscribe from "./pages/Unsubscribe";
 import Admin from "./pages/Admin";
+import ShortLinkRedirect from "./pages/ShortLinkRedirect";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import EmailUnsubscribe from "./pages/EmailUnsubscribe";
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/tos" element={<TermsOfService />} />
               <Route path="/referrals" element={<Referrals />} />
+              <Route path="/r/:code" element={<ShortLinkRedirect />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
