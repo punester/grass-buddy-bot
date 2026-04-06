@@ -26,6 +26,7 @@ const AdminReferrals = () => {
     referral_program_active: 'true',
     referral_threshold: '2',
     referral_offer_expires: '2026-12-31',
+    referral_fraud_detection: 'true',
   });
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -40,7 +41,7 @@ const AdminReferrals = () => {
     const { data } = await supabase
       .from('app_settings')
       .select('key, value')
-      .in('key', ['referral_program_active', 'referral_threshold', 'referral_offer_expires']);
+      .in('key', ['referral_program_active', 'referral_threshold', 'referral_offer_expires', 'referral_fraud_detection']);
     if (data) {
       const s: any = { ...settings };
       data.forEach(r => { s[r.key] = r.value; });
@@ -139,6 +140,17 @@ const AdminReferrals = () => {
               value={settings.referral_offer_expires}
               onChange={e => setSettings(s => ({ ...s, referral_offer_expires: e.target.value }))}
               className="w-48"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="fraud-detection">Fraud Detection</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">Turn off to test referrals on a live site without false positives</p>
+            </div>
+            <Switch
+              id="fraud-detection"
+              checked={settings.referral_fraud_detection === 'true'}
+              onCheckedChange={(v) => setSettings(s => ({ ...s, referral_fraud_detection: v ? 'true' : 'false' }))}
             />
           </div>
           <Button onClick={saveSettings} disabled={saving}>
