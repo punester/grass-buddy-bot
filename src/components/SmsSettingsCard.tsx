@@ -177,8 +177,11 @@ const SmsSettingsCard: React.FC<SmsSettingsCardProps> = ({ pendingPhone, onPendi
 
   if (!smsProfile) return null;
 
-  // Free user state
-  if (isFree) {
+  // If a pending phone from onboarding needs verification, show code entry regardless of tier
+  const hasPendingVerification = showCodeEntry && submittedPhone;
+
+  // Free user state (but skip if mid-verification flow)
+  if (isFree && !hasPendingVerification) {
     return (
       <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
         <div className="flex items-center justify-between mb-2">
