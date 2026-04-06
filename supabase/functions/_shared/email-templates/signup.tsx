@@ -28,6 +28,8 @@ interface WeatherData {
   weeklyNeed?: number
   deficit?: number
   grassType?: string
+  seasonalAlert?: string
+  seasonalMessage?: string
 }
 
 interface SignupEmailProps {
@@ -40,12 +42,24 @@ interface SignupEmailProps {
 
 const formatInches = (val: number | undefined) => (val ?? 0).toFixed(2)
 
-const getRecommendationColor = (rec: string) => {
+const getRecommendationColor = (rec: string, seasonalAlert?: string) => {
+  if (seasonalAlert === 'FROST_INCOMING' || seasonalAlert === 'WINTERIZE') return '#3b82f6'
   switch (rec) {
     case 'SKIP': return '#16a34a'
     case 'MONITOR': return '#d97706'
     case 'WATER': return '#dc2626'
     default: return '#6b7280'
+  }
+}
+
+const getDisplayLabel = (rec: string, seasonalAlert?: string) => {
+  if (seasonalAlert === 'FROST_INCOMING') return '❄️ Frost Alert — Skip Watering'
+  if (seasonalAlert === 'WINTERIZE') return '🧊 Winterize — Skip Watering'
+  switch (rec) {
+    case 'SKIP': return '✅ Skip Watering'
+    case 'MONITOR': return '⚠️ Monitor'
+    case 'WATER': return '🔴 Water Now'
+    default: return rec
   }
 }
 
@@ -71,19 +85,18 @@ export const SignupEmail = ({
           <>
             <Section style={{
               ...recommendationBanner,
-              backgroundColor: getRecommendationColor(weatherData.recommendation),
+              backgroundColor: getRecommendationColor(weatherData.recommendation, weatherData.seasonalAlert),
             }}>
-              <Text style={recommendationIcon}>
-                {weatherData.recommendation === 'SKIP' ? '✅' : weatherData.recommendation === 'MONITOR' ? '⚠️' : '🔴'}
-              </Text>
-              <Heading style={recommendationHeading}>{weatherData.recommendation}</Heading>
+              <Heading style={recommendationHeading}>
+                {getDisplayLabel(weatherData.recommendation, weatherData.seasonalAlert)}
+              </Heading>
               {weatherData.lastUpdated && (
                 <Text style={recommendationDate}>Last updated: {weatherData.lastUpdated}</Text>
               )}
             </Section>
 
             <Text style={recommendationText}>
-              {weatherData.recommendationReason}
+              {weatherData.seasonalMessage || weatherData.recommendationReason}
             </Text>
 
             {weatherData.precipitation && weatherData.forecast && (
