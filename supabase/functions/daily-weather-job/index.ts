@@ -731,16 +731,16 @@ Deno.serve(async (req) => {
     let zipErrors = 0;
     const zipCache = new Map<string, ZipWeatherResult>();
 
-    for (const zip of zipCodes) {
+    for (const zipEntry of zipCodes) {
       try {
-        const result = await fetchWeatherForZip(zip, tuning);
-        zipCache.set(zip, result);
+        const result = await fetchWeatherForZip(zipEntry.zip, tuning, zipEntry.lat, zipEntry.lng);
+        zipCache.set(zipEntry.zip, result);
 
         // Upsert into zip_cache
         const { error: upsertError } = await supabase
           .from("zip_cache")
           .upsert({
-            zip_code: zip,
+            zip_code: zipEntry.zip,
             recommendation: result.recommendation,
             recommendation_reason: result.recommendation_reason,
             rain_5d: result.rain_5d,
@@ -758,7 +758,7 @@ Deno.serve(async (req) => {
               deficit: result.deficit,
               weeklyNeed: result.et_loss_7d * tuning.mixed_multiplier,
               lastUpdated: new Date().toLocaleString(),
-              address: zip,
+              address: zipEntry.zip,
               grassType: "Mixed",
               avgHigh7d: result.avgHigh7d,
               forecastLow5d: result.forecastLow5d,
@@ -766,7 +766,7 @@ Deno.serve(async (req) => {
           }, { onConflict: "zip_code" });
 
         if (upsertError) {
-          console.error(`Upsert error for ${zip}: ${upsertError.message}`);
+          console.error(`Upsert error for ${zipEntry.zip}: ${upsertError.message}`);
           zipErrors++;
         } else {
           zipsProcessed++;
@@ -775,7 +775,7 @@ Deno.serve(async (req) => {
         // Small delay to avoid rate-limiting Open-Meteo
         await new Promise((r) => setTimeout(r, 300));
       } catch (err) {
-        console.error(`Error fetching weather for ZIP ${zip}:`, err);
+        console.error(`Error fetching weather for ZIP ${zipEntry.zip}:`, err);
         zipErrors++;
       }
     }
