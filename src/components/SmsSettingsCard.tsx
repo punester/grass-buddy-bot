@@ -180,18 +180,27 @@ const SmsSettingsCard: React.FC<SmsSettingsCardProps> = ({ pendingPhone, onPendi
   if (isFree) {
     return (
       <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
-        <div className="flex items-center gap-2 mb-2">
-          <MessageSquare className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">Daily SMS Alerts</h2>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-lg font-semibold text-foreground">Daily SMS Alerts</h2>
+          </div>
+          <button
+            onClick={() => navigate('/pricing')}
+            className="relative inline-flex h-6 w-11 items-center rounded-full bg-muted transition-colors hover:bg-muted-foreground/20"
+            aria-label="Enable SMS alerts — requires upgrade"
+          >
+            <span className="inline-block h-4 w-4 rounded-full bg-muted-foreground/40 transition-transform translate-x-1" />
+          </button>
         </div>
-        <p className="text-sm text-muted-foreground mb-4">
+        <p className="text-sm text-muted-foreground mb-3">
           Get a text only when your lawn needs action. No spam, no noise.
         </p>
         <Link
           to="/pricing"
-          className="block w-full text-center px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-medium transition-colors"
+          className="text-sm text-primary hover:underline font-medium"
         >
-          Upgrade to Pro — $24/year
+          Upgrade to Pro to enable →
         </Link>
       </div>
     );
