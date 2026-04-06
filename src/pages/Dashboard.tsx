@@ -214,14 +214,21 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* SMS Verification Banner */}
+          {/* SMS Verification Banner — scrolls to code entry */}
           {showSmsBanner && (
-            <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 mt-6 flex items-start justify-between gap-3">
-              <p className="text-sm text-foreground">
-                📱 Check your phone — enter the verification code we sent to confirm your number.
+            <button
+              onClick={() => {
+                const el = document.getElementById('sms-settings-card');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setShowSmsBanner(false);
+              }}
+              className="w-full bg-primary/10 border border-primary/30 rounded-xl p-4 mt-6 flex items-start justify-between gap-3 text-left hover:bg-primary/15 transition-colors"
+            >
+              <p className="text-sm text-foreground font-medium">
+                📱 Check your phone — tap here to enter your verification code below.
               </p>
-              <button onClick={() => setShowSmsBanner(false)} className="text-muted-foreground hover:text-foreground text-lg leading-none">×</button>
-            </div>
+              <span className="text-muted-foreground hover:text-foreground text-lg leading-none shrink-0">×</span>
+            </button>
           )}
 
           {/* Daily SMS Alerts */}

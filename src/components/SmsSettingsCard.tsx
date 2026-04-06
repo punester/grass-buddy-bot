@@ -258,7 +258,7 @@ const SmsSettingsCard: React.FC<SmsSettingsCardProps> = ({ pendingPhone, onPendi
 
   // Paid — State A: Not enrolled (or code entry)
   return (
-    <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
+    <div id="sms-settings-card" className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
       <div className="flex items-center gap-2 mb-2">
         <MessageSquare className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-semibold text-foreground">Get Daily SMS Alerts</h2>
