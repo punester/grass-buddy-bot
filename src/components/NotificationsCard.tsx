@@ -196,14 +196,7 @@ const NotificationsCard: React.FC = () => {
                   onClick={() => {
                     const effectivePhone = phone || prefilledPhone || '';
                     if (!phone && prefilledPhone) setPhone(prefilledPhone);
-                    // Use effective phone directly to avoid stale state
-                    const e164 = formatToE164(effectivePhone);
-                    if (!/^\+[1-9]\d{6,14}$/.test(e164)) {
-                      setError('Enter a valid phone number (e.g. +16175551234)');
-                      return;
-                    }
-                    setPhone(effectivePhone);
-                    handleSendCode();
+                    handleSendCode(effectivePhone);
                   }}
                   disabled={loading || !(phone.trim() || prefilledPhone)}
                   className="w-full px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
