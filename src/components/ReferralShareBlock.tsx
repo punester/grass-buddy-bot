@@ -8,7 +8,7 @@ interface ReferralShareBlockProps {
   threshold: number;
 }
 
-const SITE_URL = 'https://grass-buddy-bot.lovable.app';
+const SITE_URL = 'https://thirstygrass.com';
 
 const ReferralShareBlock: React.FC<ReferralShareBlockProps> = ({ referralCode, referralCount, threshold }) => {
   const [copied, setCopied] = useState(false);
