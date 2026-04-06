@@ -40,3 +40,6 @@ project_id = "ntxtezzajvvilwuyifqn"
   [functions.dispatch-sms]
     verify_jwt = false
 
+  [functions.verify-phone]
+    verify_jwt = false
+
