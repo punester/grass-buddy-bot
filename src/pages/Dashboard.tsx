@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import WateringHistoryChart from '@/components/WateringHistoryChart';
+import DummyWaterBalanceChart from '@/components/DummyWaterBalanceChart';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
@@ -232,11 +233,13 @@ const Dashboard = () => {
           {/* 30-Day History — gated */}
           {isFree ? (
             <LockedFeatureCard
-              icon="🔒"
+              icon="📊"
               headline="30-Day Watering History"
               body="See how your lawn's water needs have changed over the past month."
               className="mt-6"
-            />
+            >
+              <DummyWaterBalanceChart />
+            </LockedFeatureCard>
           ) : (
             <WateringHistoryChart />
           )}
