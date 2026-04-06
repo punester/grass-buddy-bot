@@ -28,3 +28,9 @@ project_id = "ntxtezzajvvilwuyifqn"
   [functions.stripe-webhook]
     verify_jwt = false
 
+  [functions.redirect]
+    verify_jwt = false
+
+  [functions.send-sms]
+    verify_jwt = false
+

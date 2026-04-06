@@ -34,6 +34,9 @@ interface Profile {
   email_unsubscribed: boolean | null;
   last_seasonal_alert_sent: string | null;
   last_seasonal_alert_date: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  timezone: string | null;
 }
 
 interface ZipWeatherResult {
@@ -115,14 +118,27 @@ async function fetchWithRetry(url: string, retries = 2, backoffMs = 1000): Promi
 
 // ── Weather fetch ──────────────────────────────────────
 
-async function fetchWeatherForZip(zipCode: string, tuning: TuningParams): Promise<ZipWeatherResult> {
-  const geoRes = await fetchWithRetry(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode)}&count=1&country=US&format=json`
-  );
-  const geoData = await geoRes.json();
-  if (!geoData.results?.length) throw new Error(`No location for ZIP ${zipCode}`);
+async function fetchWeatherForZip(
+  zipCode: string,
+  tuning: TuningParams,
+  storedLat?: number | null,
+  storedLng?: number | null,
+): Promise<ZipWeatherResult> {
+  let latitude: number;
+  let longitude: number;
 
-  const { latitude, longitude } = geoData.results[0];
+  if (storedLat != null && storedLng != null) {
+    latitude = storedLat;
+    longitude = storedLng;
+  } else {
+    const geoRes = await fetchWithRetry(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode)}&count=1&country=US&format=json`
+    );
+    const geoData = await geoRes.json();
+    if (!geoData.results?.length) throw new Error(`No location for ZIP ${zipCode}`);
+    latitude = geoData.results[0].latitude;
+    longitude = geoData.results[0].longitude;
+  }
 
   const weatherRes = await fetchWithRetry(
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch`
@@ -677,29 +693,35 @@ Deno.serve(async (req) => {
 
     const tuning = await getTuningParams();
 
-    // ── STEP 1: Get unique ZIP codes ─────────────────
-    let zipCodes: string[] = [];
+    // ── STEP 1: Get unique ZIP codes with stored coords ─
+    let zipCodes: { zip: string; lat: number | null; lng: number | null }[] = [];
     if (testZip) {
-      zipCodes = [testZip];
+      zipCodes = [{ zip: testZip, lat: null, lng: null }];
     } else {
       let offset = 0;
       const pageSize = 500;
-      const zipSet = new Set<string>();
+      const zipMap = new Map<string, { lat: number | null; lng: number | null }>();
       while (true) {
         const { data, error } = await supabase
           .from("profiles")
-          .select("zip_code")
+          .select("zip_code, latitude, longitude")
           .not("zip_code", "is", null)
           .range(offset, offset + pageSize - 1);
         if (error) throw new Error(`DB query failed: ${error.message}`);
         if (!data || data.length === 0) break;
         for (const row of data) {
-          if (row.zip_code) zipSet.add(row.zip_code);
+          if (row.zip_code && !zipMap.has(row.zip_code)) {
+            zipMap.set(row.zip_code, { lat: row.latitude, lng: row.longitude });
+          }
         }
         if (data.length < pageSize) break;
         offset += pageSize;
       }
-      zipCodes = Array.from(zipSet);
+      zipCodes = Array.from(zipMap.entries()).map(([zip, coords]) => ({
+        zip,
+        lat: coords.lat,
+        lng: coords.lng,
+      }));
     }
 
     console.log(`Processing ${zipCodes.length} unique ZIP codes`);
@@ -709,16 +731,16 @@ Deno.serve(async (req) => {
     let zipErrors = 0;
     const zipCache = new Map<string, ZipWeatherResult>();
 
-    for (const zip of zipCodes) {
+    for (const zipEntry of zipCodes) {
       try {
-        const result = await fetchWeatherForZip(zip, tuning);
-        zipCache.set(zip, result);
+        const result = await fetchWeatherForZip(zipEntry.zip, tuning, zipEntry.lat, zipEntry.lng);
+        zipCache.set(zipEntry.zip, result);
 
         // Upsert into zip_cache
         const { error: upsertError } = await supabase
           .from("zip_cache")
           .upsert({
-            zip_code: zip,
+            zip_code: zipEntry.zip,
             recommendation: result.recommendation,
             recommendation_reason: result.recommendation_reason,
             rain_5d: result.rain_5d,
@@ -736,7 +758,7 @@ Deno.serve(async (req) => {
               deficit: result.deficit,
               weeklyNeed: result.et_loss_7d * tuning.mixed_multiplier,
               lastUpdated: new Date().toLocaleString(),
-              address: zip,
+              address: zipEntry.zip,
               grassType: "Mixed",
               avgHigh7d: result.avgHigh7d,
               forecastLow5d: result.forecastLow5d,
@@ -744,7 +766,7 @@ Deno.serve(async (req) => {
           }, { onConflict: "zip_code" });
 
         if (upsertError) {
-          console.error(`Upsert error for ${zip}: ${upsertError.message}`);
+          console.error(`Upsert error for ${zipEntry.zip}: ${upsertError.message}`);
           zipErrors++;
         } else {
           zipsProcessed++;
@@ -753,7 +775,7 @@ Deno.serve(async (req) => {
         // Small delay to avoid rate-limiting Open-Meteo
         await new Promise((r) => setTimeout(r, 300));
       } catch (err) {
-        console.error(`Error fetching weather for ZIP ${zip}:`, err);
+        console.error(`Error fetching weather for ZIP ${zipEntry.zip}:`, err);
         zipErrors++;
       }
     }
@@ -769,7 +791,7 @@ Deno.serve(async (req) => {
       while (true) {
         let query = supabase
           .from("profiles")
-          .select("id, email, zip_code, grass_type, lawn_size_acres, email_unsubscribed, last_seasonal_alert_sent, last_seasonal_alert_date")
+          .select("id, email, zip_code, grass_type, lawn_size_acres, email_unsubscribed, last_seasonal_alert_sent, last_seasonal_alert_date, latitude, longitude, timezone")
           .not("zip_code", "is", null)
           .not("email", "is", null);
 

@@ -63,6 +63,27 @@ const Onboarding = () => {
     if (!user) return;
 
     setIsSubmitting(true);
+
+    // Geocode ZIP to get lat/lng/timezone
+    let latitude: number | null = null;
+    let longitude: number | null = null;
+    let timezone: string | null = null;
+    try {
+      const geoRes = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode.trim())}&count=1&country=US&format=json`
+      );
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        if (geoData.results && geoData.results.length > 0) {
+          latitude = geoData.results[0].latitude;
+          longitude = geoData.results[0].longitude;
+          timezone = geoData.results[0].timezone || null;
+        }
+      }
+    } catch (e) {
+      console.error('Geocoding error:', e);
+    }
+
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
@@ -70,6 +91,9 @@ const Onboarding = () => {
         grass_type: grassType || null,
         irrigation_type: irrigationType || null,
         lawn_size_acres: lawnSize ? parseFloat(lawnSize) : null,
+        latitude,
+        longitude,
+        timezone,
       } as any)
       .eq('id', user.id);
 
