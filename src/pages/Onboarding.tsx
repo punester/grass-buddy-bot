@@ -41,6 +41,7 @@ const Onboarding = () => {
   const [irrigationType, setIrrigationType] = useState('');
   const [lawnSize, setLawnSize] = useState('');
   const [zipError, setZipError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [smsPhone, setSmsPhone] = useState('');
