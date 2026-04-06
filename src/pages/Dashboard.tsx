@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import WateringHistoryChart from '@/components/WateringHistoryChart';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
@@ -237,10 +238,7 @@ const Dashboard = () => {
               className="mt-6"
             />
           ) : (
-            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-6">
-              <h2 className="text-lg font-semibold text-foreground mb-2">📊 30-Day Watering History</h2>
-              <p className="text-sm text-muted-foreground">Your watering history chart will appear here.</p>
-            </div>
+            <WateringHistoryChart />
           )}
 
           {/* Lawn Profile Summary */}
