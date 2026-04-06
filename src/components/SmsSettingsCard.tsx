@@ -51,6 +51,11 @@ const SmsSettingsCard: React.FC<SmsSettingsCardProps> = ({ pendingPhone, onPendi
       setSubmittedPhone(pendingPhone);
       setShowCodeEntry(true);
       onPendingPhoneHandled?.();
+      // Auto-scroll to the code entry
+      setTimeout(() => {
+        const el = document.getElementById('sms-settings-card');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
     }
   }, [pendingPhone, smsProfile]);
 
