@@ -37,3 +37,6 @@ project_id = "ntxtezzajvvilwuyifqn"
   [functions.calculate-recommendation]
     verify_jwt = false
 
+  [functions.dispatch-sms]
+    verify_jwt = false
+
