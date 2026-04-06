@@ -156,12 +156,15 @@ const NotificationsCard: React.FC = () => {
   };
 
   const hasVerifiedPhone = smsProfile?.sms_phone && smsProfile.sms_phone_verified;
-  const hasNoPhone = !smsProfile?.sms_phone;
+  const needsPhoneEntry = !smsProfile?.sms_phone || showPhoneInput || (smsProfile?.sms_phone && !smsProfile.sms_phone_verified);
 
   // Determine SMS row state
   const renderSmsSection = () => {
-    // State A — no phone or actively entering
-    if ((hasNoPhone || showPhoneInput) && !hasVerifiedPhone) {
+    // State A — no phone, unverified phone, or actively entering
+    if (needsPhoneEntry && !hasVerifiedPhone) {
+      // Pre-fill phone if exists but unverified
+      const prefilledPhone = smsProfile?.sms_phone && !smsProfile.sms_phone_verified && !phone ? smsProfile.sms_phone : phone;
+      
       return (
         <div>
           <div className="flex items-center justify-between">
@@ -169,82 +172,75 @@ const NotificationsCard: React.FC = () => {
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-foreground">SMS Alerts</p>
+                  <p className="text-sm font-medium text-foreground">SMS Water Alerts</p>
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Pro</Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">Notified on water days and seasonal changes</p>
+                <p className="text-xs text-muted-foreground">Get notified when you need to water</p>
               </div>
             </div>
           </div>
 
-          {(showPhoneInput || showCodeEntry) && (
-            <div className="mt-3 pl-7">
-              {!showCodeEntry ? (
-                <div className="space-y-2">
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => { setPhone(e.target.value); setError(''); }}
-                    placeholder="Your phone number"
-                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                  {error && <p className="text-xs text-destructive">{error}</p>}
+          {/* Phone input — always visible in State A */}
+          <div className="mt-3 pl-7">
+            {!showCodeEntry ? (
+              <div className="space-y-2">
+                <input
+                  type="tel"
+                  value={prefilledPhone || phone}
+                  onChange={(e) => { setPhone(e.target.value); setError(''); }}
+                  placeholder="Your phone number"
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                {error && <p className="text-xs text-destructive">{error}</p>}
+                <button
+                  onClick={() => {
+                    if (!phone && prefilledPhone) setPhone(prefilledPhone);
+                    handleSendCode();
+                  }}
+                  disabled={loading || !(phone.trim() || prefilledPhone)}
+                  className="w-full px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Sending…' : 'Send Verification Code'}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Enter the 6-digit code sent to {submittedPhone}
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoFocus
+                  value={code}
+                  onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setError(''); }}
+                  placeholder="123456"
+                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-center text-lg tracking-widest placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                {error && <p className="text-xs text-destructive">{error}</p>}
+                <button
+                  onClick={handleCheckCode}
+                  disabled={loading || code.length < 4}
+                  className="w-full px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Verifying…' : 'Verify Number'}
+                </button>
+                <div className="flex justify-between">
+                  <button onClick={handleResend} disabled={loading} className="text-xs text-primary hover:underline disabled:opacity-50">
+                    Resend code
+                  </button>
                   <button
-                    onClick={handleSendCode}
-                    disabled={loading || !phone.trim()}
-                    className="w-full px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                    onClick={() => { setShowCodeEntry(false); setCode(''); setError(''); }}
+                    disabled={loading}
+                    className="text-xs text-primary hover:underline disabled:opacity-50"
                   >
-                    {loading ? 'Sending…' : 'Send Verification Code'}
+                    Use a different number
                   </button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Enter the 6-digit code sent to {submittedPhone}
-                  </p>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    autoFocus
-                    value={code}
-                    onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setError(''); }}
-                    placeholder="123456"
-                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-center text-lg tracking-widest placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                  {error && <p className="text-xs text-destructive">{error}</p>}
-                  <button
-                    onClick={handleCheckCode}
-                    disabled={loading || code.length < 4}
-                    className="w-full px-3 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                  >
-                    {loading ? 'Verifying…' : 'Verify Number'}
-                  </button>
-                  <div className="flex justify-between">
-                    <button onClick={handleResend} disabled={loading} className="text-xs text-primary hover:underline disabled:opacity-50">
-                      Resend code
-                    </button>
-                    <button
-                      onClick={() => { setShowCodeEntry(false); setCode(''); setError(''); }}
-                      disabled={loading}
-                      className="text-xs text-primary hover:underline disabled:opacity-50"
-                    >
-                      Use a different number
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!showPhoneInput && !showCodeEntry && hasNoPhone && (
-            <button
-              onClick={() => setShowPhoneInput(true)}
-              className="mt-2 ml-7 text-xs text-primary hover:underline"
-            >
-              Add phone number
-            </button>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       );
     }
@@ -257,10 +253,10 @@ const NotificationsCard: React.FC = () => {
             <MessageSquare className="h-4 w-4 text-muted-foreground" />
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-foreground">SMS Alerts</p>
+                <p className="text-sm font-medium text-foreground">SMS Water Alerts</p>
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Pro</Badge>
               </div>
-              <p className="text-xs text-muted-foreground">{smsProfile.sms_phone}</p>
+              <p className="text-xs text-muted-foreground">{smsProfile!.sms_phone}</p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 <Link to="/pricing" className="text-primary hover:underline">Upgrade to Pro to enable</Link>
               </p>
@@ -282,7 +278,7 @@ const NotificationsCard: React.FC = () => {
             <MessageSquare className="h-4 w-4 text-primary" />
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-foreground">SMS Alerts</p>
+                <p className="text-sm font-medium text-foreground">SMS Water Alerts</p>
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Pro</Badge>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -319,7 +315,10 @@ const NotificationsCard: React.FC = () => {
         <div className="flex items-center gap-3">
           <Mail className="h-4 w-4 text-muted-foreground" />
           <div>
-            <p className="text-sm font-medium text-foreground">Weekly Digest</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-foreground">Weekly Email Digest</p>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">Free</Badge>
+            </div>
             <p className="text-xs text-muted-foreground">Monday morning watering summary</p>
           </div>
         </div>
