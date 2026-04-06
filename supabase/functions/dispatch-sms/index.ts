@@ -147,6 +147,22 @@ Deno.serve(async (req) => {
 
         const result = await recResponse.json();
 
+        // Upsert recommendation_history regardless of send decision
+        const userDate = new Date().toLocaleDateString("en-CA", { timeZone: user.timezone || "America/New_York" });
+        await supabase.from("recommendation_history").upsert({
+          user_id: user.id,
+          date: userDate,
+          recommendation: result.recommendation,
+          alert_type: result.alertType || null,
+          deficit: result.personalDeficit ?? null,
+          et_loss_7d: result.et_loss_7d ?? null,
+          rain_5d: result.rain_5d ?? null,
+          forecast_5d: result.forecast_5d ?? null,
+          avg_high_7d: result.avgHigh7d ?? null,
+          forecast_low_5d: result.forecastLow5d ?? null,
+          source: "cron",
+        }, { onConflict: "user_id,date" });
+
         // Step 2 — Send decision
         // Dormant with no seasonal alert → skip
         if (result.isDormant && !result.alertType) {

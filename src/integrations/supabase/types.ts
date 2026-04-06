@@ -256,6 +256,62 @@ export type Database = {
           },
         ]
       }
+      recommendation_history: {
+        Row: {
+          alert_type: string | null
+          avg_high_7d: number | null
+          created_at: string
+          date: string
+          deficit: number | null
+          et_loss_7d: number | null
+          forecast_5d: number | null
+          forecast_low_5d: number | null
+          id: string
+          rain_5d: number | null
+          recommendation: string | null
+          source: string
+          user_id: string
+        }
+        Insert: {
+          alert_type?: string | null
+          avg_high_7d?: number | null
+          created_at?: string
+          date: string
+          deficit?: number | null
+          et_loss_7d?: number | null
+          forecast_5d?: number | null
+          forecast_low_5d?: number | null
+          id?: string
+          rain_5d?: number | null
+          recommendation?: string | null
+          source: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string | null
+          avg_high_7d?: number | null
+          created_at?: string
+          date?: string
+          deficit?: number | null
+          et_loss_7d?: number | null
+          forecast_5d?: number | null
+          forecast_low_5d?: number | null
+          id?: string
+          rain_5d?: number | null
+          recommendation?: string | null
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referrals: {
         Row: {
           counted: boolean
