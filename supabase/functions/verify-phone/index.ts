@@ -76,13 +76,14 @@ Deno.serve(async (req) => {
       const twilioBody = await twilioRes.json().catch(() => ({}));
 
       if (twilioRes.ok) {
+        console.log(`Twilio Verify sent successfully for ${userId} to ${phoneNumber}`);
         return new Response(
           JSON.stringify({ success: true }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } else {
         const errorMsg = twilioBody.message || "Failed to send verification code";
-        console.error(`Twilio Verify send error for ${userId}: ${errorMsg}`);
+        console.error(`Twilio Verify send error for ${userId}: status=${twilioRes.status} code=${twilioBody.code} message=${errorMsg} moreInfo=${twilioBody.more_info} serviceSid=${TWILIO_VERIFY_SERVICE_SID?.substring(0,8)}...`);
         return new Response(
           JSON.stringify({ success: false, error: errorMsg }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
