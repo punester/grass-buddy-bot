@@ -42,12 +42,24 @@ interface SignupEmailProps {
 
 const formatInches = (val: number | undefined) => (val ?? 0).toFixed(2)
 
-const getRecommendationColor = (rec: string) => {
+const getRecommendationColor = (rec: string, seasonalAlert?: string) => {
+  if (seasonalAlert === 'FROST_INCOMING' || seasonalAlert === 'WINTERIZE') return '#3b82f6'
   switch (rec) {
     case 'SKIP': return '#16a34a'
     case 'MONITOR': return '#d97706'
     case 'WATER': return '#dc2626'
     default: return '#6b7280'
+  }
+}
+
+const getDisplayLabel = (rec: string, seasonalAlert?: string) => {
+  if (seasonalAlert === 'FROST_INCOMING') return '❄️ Frost Alert — Skip Watering'
+  if (seasonalAlert === 'WINTERIZE') return '🧊 Winterize — Skip Watering'
+  switch (rec) {
+    case 'SKIP': return '✅ Skip Watering'
+    case 'MONITOR': return '⚠️ Monitor'
+    case 'WATER': return '🔴 Water Now'
+    default: return rec
   }
 }
 
