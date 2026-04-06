@@ -226,6 +226,28 @@ export const fetchPrecipitationData = async (
           p_user_id: userId ?? null,
         });
 
+        // Write recommendation_history for authenticated users (cache hit)
+        if (userId) {
+          try {
+            const todayDate = new Date().toISOString().slice(0, 10);
+            await supabase.from('recommendation_history' as any).upsert({
+              user_id: userId,
+              date: todayDate,
+              recommendation,
+              alert_type: result.seasonalAlert,
+              deficit,
+              et_loss_7d: cachedData.etLoss7d,
+              rain_5d: cachedData.precipitation.day5,
+              forecast_5d: cachedData.forecast.day5,
+              avg_high_7d: avgHigh7d,
+              forecast_low_5d: forecastLow5d,
+              source: 'manual',
+            }, { onConflict: 'user_id,date' });
+          } catch {
+            // Non-critical
+          }
+        }
+
         return result;
       }
     }
