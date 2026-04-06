@@ -97,22 +97,36 @@ function cToF(c: number): number {
   return c * 9 / 5 + 32;
 }
 
+// ── Fetch with retry ──────────────────────────────────
+
+async function fetchWithRetry(url: string, retries = 2, backoffMs = 1000): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url);
+    if (res.ok) return res;
+    if (attempt < retries && (res.status >= 500 || res.status === 429)) {
+      console.warn(`Fetch ${url} failed (${res.status}), retry ${attempt + 1}/${retries} in ${backoffMs}ms`);
+      await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
+      continue;
+    }
+    throw new Error(`Fetch failed (${res.status}) after ${attempt + 1} attempts`);
+  }
+  throw new Error("Unreachable");
+}
+
 // ── Weather fetch ──────────────────────────────────────
 
 async function fetchWeatherForZip(zipCode: string, tuning: TuningParams): Promise<ZipWeatherResult> {
-  const geoRes = await fetch(
+  const geoRes = await fetchWithRetry(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode)}&count=1&country=US&format=json`
   );
-  if (!geoRes.ok) throw new Error(`Geocoding failed (${geoRes.status})`);
   const geoData = await geoRes.json();
   if (!geoData.results?.length) throw new Error(`No location for ZIP ${zipCode}`);
 
   const { latitude, longitude } = geoData.results[0];
 
-  const weatherRes = await fetch(
+  const weatherRes = await fetchWithRetry(
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch`
   );
-  if (!weatherRes.ok) throw new Error(`Weather fetch failed (${weatherRes.status})`);
   const weatherData = await weatherRes.json();
   const daily = weatherData.daily;
 
@@ -208,6 +222,20 @@ function personalizeForUser(
   tuning: TuningParams
 ): { recommendation: "WATER" | "MONITOR" | "SKIP"; recommendation_reason: string; deficit: number } {
   const gt = grassType || "Mixed";
+
+  // Check seasonal state FIRST — override deficit logic if dormant/frost
+  const { seasonalState, seasonalMessage } = evaluateSeasonalState(
+    cached.avgHigh7d, cached.forecastLow5d, gt
+  );
+
+  if (seasonalState !== "ACTIVE") {
+    return {
+      recommendation: "SKIP",
+      recommendation_reason: seasonalMessage,
+      deficit: 0,
+    };
+  }
+
   const multiplier =
     gt === "Cool-Season" ? tuning.cool_season_multiplier :
     gt === "Warm-Season" ? tuning.warm_season_multiplier :
@@ -848,26 +876,28 @@ Deno.serve(async (req) => {
         // Get cached ZIP data
         let cached = zipCache.get(profile.zip_code);
         if (!cached) {
-          const { data: row } = await supabase
+          // Also try to get real temperatures from weather_data JSON
+          const { data: fullRow } = await supabase
             .from("zip_cache")
-            .select("rain_5d, forecast_5d, et_loss_7d, deficit, recommendation, recommendation_reason")
+            .select("rain_5d, forecast_5d, et_loss_7d, deficit, recommendation, recommendation_reason, weather_data")
             .eq("zip_code", profile.zip_code)
             .single();
-          if (!row) {
+          if (!fullRow) {
             console.warn(`No cache for ZIP ${profile.zip_code}, skipping ${profile.email}`);
             continue;
           }
+          const wd = fullRow.weather_data as Record<string, any> | null;
           cached = {
-            rain_5d: Number(row.rain_5d),
+            rain_5d: Number(fullRow.rain_5d),
             rain_3d: 0,
-            forecast_5d: Number(row.forecast_5d),
+            forecast_5d: Number(fullRow.forecast_5d),
             forecast_3d: 0,
-            et_loss_7d: Number(row.et_loss_7d),
-            deficit: Number(row.deficit),
-            recommendation: row.recommendation as "WATER" | "MONITOR" | "SKIP",
-            recommendation_reason: row.recommendation_reason || "",
-            avgHigh7d: 80,
-            forecastLow5d: 50,
+            et_loss_7d: Number(fullRow.et_loss_7d),
+            deficit: Number(fullRow.deficit),
+            recommendation: fullRow.recommendation as "WATER" | "MONITOR" | "SKIP",
+            recommendation_reason: fullRow.recommendation_reason || "",
+            avgHigh7d: wd?.avgHigh7d ?? 80,
+            forecastLow5d: wd?.forecastLow5d ?? 50,
           };
         }
 
