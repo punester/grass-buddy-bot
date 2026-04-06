@@ -85,12 +85,11 @@ export const SignupEmail = ({
           <>
             <Section style={{
               ...recommendationBanner,
-              backgroundColor: getRecommendationColor(weatherData.recommendation),
+              backgroundColor: getRecommendationColor(weatherData.recommendation, weatherData.seasonalAlert),
             }}>
-              <Text style={recommendationIcon}>
-                {weatherData.recommendation === 'SKIP' ? '✅' : weatherData.recommendation === 'MONITOR' ? '⚠️' : '🔴'}
-              </Text>
-              <Heading style={recommendationHeading}>{weatherData.recommendation}</Heading>
+              <Heading style={recommendationHeading}>
+                {getDisplayLabel(weatherData.recommendation, weatherData.seasonalAlert)}
+              </Heading>
               {weatherData.lastUpdated && (
                 <Text style={recommendationDate}>Last updated: {weatherData.lastUpdated}</Text>
               )}
