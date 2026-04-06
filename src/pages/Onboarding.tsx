@@ -35,6 +35,8 @@ const Onboarding = () => {
   const [zipError, setZipError] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [smsPhone, setSmsPhone] = useState('');
+  const [smsOptIn, setSmsOptIn] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -94,6 +96,7 @@ const Onboarding = () => {
         latitude,
         longitude,
         timezone,
+        ...(smsPhone.trim() && smsOptIn ? { sms_phone: formatPhoneE164(smsPhone) } : {}),
       } as any)
       .eq('id', user.id);
 
@@ -128,8 +131,23 @@ const Onboarding = () => {
       } catch (e) {
         console.error('Referral processing error:', e);
       }
-      setIsSubmitting(false);
-      navigate('/dashboard');
+
+      // If SMS opt-in, send verification code and redirect with phone param
+      if (smsPhone.trim() && smsOptIn) {
+        const e164 = formatPhoneE164(smsPhone);
+        try {
+          await supabase.functions.invoke('verify-phone', {
+            body: { action: 'send', phoneNumber: e164 },
+          });
+        } catch (e) {
+          console.error('SMS verification send error:', e);
+        }
+        setIsSubmitting(false);
+        navigate(`/dashboard?sms_phone=${encodeURIComponent(e164)}`);
+      } else {
+        setIsSubmitting(false);
+        navigate('/dashboard');
+      }
     }
   };
 
