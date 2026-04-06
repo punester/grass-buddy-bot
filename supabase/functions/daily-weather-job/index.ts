@@ -683,6 +683,23 @@ Deno.serve(async (req) => {
         const narrative = generateNarrative(cached);
         const unsubscribeUrl = `https://thirstygrass.com/email-unsubscribe?user_id=${profile.id}`;
 
+        // Upsert recommendation_history
+        try {
+          await supabase.from("recommendation_history").upsert({
+            user_id: profile.id,
+            date: today,
+            recommendation: personal.recommendation,
+            alert_type: null,
+            deficit: personal.deficit,
+            et_loss_7d: cached.et_loss_7d,
+            rain_5d: cached.rain_5d,
+            forecast_5d: cached.forecast_5d,
+            avg_high_7d: cached.avgHigh7d,
+            forecast_low_5d: cached.forecastLow5d,
+            source: "cron",
+          }, { onConflict: "user_id,date" });
+        } catch { /* non-critical */ }
+
         // Generate magic link
         let dashboardUrl = fallbackDashboardUrl;
         try {

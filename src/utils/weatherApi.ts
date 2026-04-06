@@ -406,5 +406,27 @@ export const fetchPrecipitationData = async (
     // Non-critical
   }
 
+  // Write recommendation_history for authenticated users
+  if (userId) {
+    try {
+      const todayDate = new Date().toISOString().slice(0, 10);
+      await supabase.from('recommendation_history' as any).upsert({
+        user_id: userId,
+        date: todayDate,
+        recommendation,
+        alert_type: seasonalAlert,
+        deficit,
+        et_loss_7d: etLoss7d,
+        rain_5d: precipDay5,
+        forecast_5d: forecastDay5,
+        avg_high_7d: avgHigh7d,
+        forecast_low_5d: forecastLow5d,
+        source: 'manual',
+      }, { onConflict: 'user_id,date' });
+    } catch {
+      // Non-critical
+    }
+  }
+
   return result;
 };
