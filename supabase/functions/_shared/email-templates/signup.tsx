@@ -96,7 +96,7 @@ export const SignupEmail = ({
             </Section>
 
             <Text style={recommendationText}>
-              {weatherData.recommendationReason}
+              {weatherData.seasonalMessage || weatherData.recommendationReason}
             </Text>
 
             {weatherData.precipitation && weatherData.forecast && (
