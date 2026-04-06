@@ -74,34 +74,49 @@ serve(async (req) => {
       });
     }
 
+    // Check if fraud detection is enabled
+    const { data: fraudSetting } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "referral_fraud_detection")
+      .single();
+    const fraudDetectionEnabled = fraudSetting?.value !== 'false';
+
     // Fraud detection
-    const referredIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    const referredDevice = device_fingerprint || "unknown";
-    const referredBrowser = user_agent || "unknown";
+    let fraudSuspected = false;
+    let fraudEvidence: Record<string, unknown> = {};
 
-    // Get referrer's auth metadata for comparison
-    const { data: referrerAuth } = await supabase.auth.admin.getUserById(referrer.id);
-    const referrerMeta = referrerAuth?.user?.user_metadata || {};
-    const referrerIp = referrerAuth?.user?.last_sign_in_at ? "unknown" : "unknown"; // IP not reliably stored
-    const referrerDevice = referrerMeta.device_fingerprint || "unknown";
-    const referrerBrowser = referrerMeta.user_agent || "unknown";
+    if (fraudDetectionEnabled) {
+      const referredIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+      const referredDevice = device_fingerprint || "unknown";
+      const referredBrowser = user_agent || "unknown";
 
-    const ipMatch = referredIp !== "unknown" && referredIp === referrerIp;
-    const deviceMatch = referredDevice !== "unknown" && referredDevice === referrerDevice;
-    const browserMatch = referredBrowser !== "unknown" && referredBrowser === referrerBrowser;
+      const { data: referrerAuth } = await supabase.auth.admin.getUserById(referrer.id);
+      const referrerMeta = referrerAuth?.user?.user_metadata || {};
+      const referrerIp = "unknown";
+      const referrerDevice = referrerMeta.device_fingerprint || "unknown";
+      const referrerBrowser = referrerMeta.user_agent || "unknown";
 
-    const matchCount = [ipMatch, deviceMatch, browserMatch].filter(Boolean).length;
-    const fraudSuspected = matchCount >= 2;
+      const ipMatch = referredIp !== "unknown" && referredIp === referrerIp;
+      const deviceMatch = referredDevice !== "unknown" && referredDevice === referrerDevice;
+      const browserMatch = referredBrowser !== "unknown" && referredBrowser === referrerBrowser;
 
-    const fraudEvidence = {
-      ip_match: ipMatch,
-      device_match: deviceMatch,
-      browser_match: browserMatch,
-      referred_ip: referredIp,
-      referrer_ip: referrerIp,
-      referred_device: referredDevice,
-      referrer_device: referrerDevice,
-    };
+      const matchCount = [ipMatch, deviceMatch, browserMatch].filter(Boolean).length;
+      fraudSuspected = matchCount >= 2;
+
+      fraudEvidence = {
+        ip_match: ipMatch,
+        device_match: deviceMatch,
+        browser_match: browserMatch,
+        referred_ip: referredIp,
+        referrer_ip: referrerIp,
+        referred_device: referredDevice,
+        referrer_device: referrerDevice,
+      };
+    } else {
+      console.log("[process-referral] Fraud detection disabled via admin setting");
+    }
+
 
     // Update referred_by on profile
     await supabase
