@@ -13,6 +13,7 @@ import AdminPricing from '@/components/admin/AdminPricing';
 import AdminTuning from '@/components/admin/AdminTuning';
 import AdminReferrals from '@/components/admin/AdminReferrals';
 import AdminEmailSystem from '@/components/admin/AdminEmailSystem';
+import AdminCommunications from '@/components/admin/AdminCommunications';
 
 const ADMIN_EMAILS = ['punit@110labs.com', 'pun279@gmail.com'];
 
@@ -44,6 +45,7 @@ const Admin = () => {
               <TabsTrigger value="referrals" className="text-xs sm:text-sm">Referrals</TabsTrigger>
               <TabsTrigger value="billing" className="text-xs sm:text-sm">Billing</TabsTrigger>
               <TabsTrigger value="email" className="text-xs sm:text-sm">Email</TabsTrigger>
+              <TabsTrigger value="comms" className="text-xs sm:text-sm">Communications</TabsTrigger>
               <TabsTrigger value="cache" className="text-xs sm:text-sm">Cache</TabsTrigger>
               <TabsTrigger value="pricing" className="text-xs sm:text-sm">Pricing</TabsTrigger>
               <TabsTrigger value="tuning" className="text-xs sm:text-sm">Tuning</TabsTrigger>
@@ -53,6 +55,7 @@ const Admin = () => {
             <TabsContent value="referrals"><AdminReferrals /></TabsContent>
             <TabsContent value="billing"><AdminBilling /></TabsContent>
             <TabsContent value="email"><AdminEmailSystem /></TabsContent>
+            <TabsContent value="comms"><AdminCommunications /></TabsContent>
             <TabsContent value="cache"><AdminCache /></TabsContent>
             <TabsContent value="pricing"><AdminPricing /></TabsContent>
             <TabsContent value="tuning">
