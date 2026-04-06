@@ -263,6 +263,31 @@ const Onboarding = () => {
                 <p className="text-xs text-muted-foreground mt-1">Used to calculate how long to run your sprinklers</p>
               </div>
 
+              {/* SMS Opt-In (optional) */}
+              <div className="border-t border-border pt-5">
+                <p className="text-sm font-medium text-muted-foreground mb-3">Want daily watering alerts by text?</p>
+                <input
+                  type="tel"
+                  value={smsPhone}
+                  onChange={(e) => setSmsPhone(e.target.value)}
+                  placeholder="+1 (617) 555-1234"
+                  className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all mb-2"
+                />
+                <div className="flex items-start gap-2 mb-1">
+                  <input
+                    type="checkbox"
+                    id="smsOptIn"
+                    checked={smsOptIn}
+                    onChange={(e) => setSmsOptIn(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-primary/50"
+                  />
+                  <label htmlFor="smsOptIn" className="text-sm text-muted-foreground">
+                    Text me when my lawn needs water
+                  </label>
+                </div>
+                <p className="text-xs text-muted-foreground">Only texts when action is needed. SMS requires Pro.</p>
+              </div>
+
               {/* Terms checkbox */}
               <div className="flex items-start gap-2">
                 <input
