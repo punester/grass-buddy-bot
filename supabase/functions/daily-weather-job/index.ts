@@ -97,22 +97,36 @@ function cToF(c: number): number {
   return c * 9 / 5 + 32;
 }
 
+// ── Fetch with retry ──────────────────────────────────
+
+async function fetchWithRetry(url: string, retries = 2, backoffMs = 1000): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url);
+    if (res.ok) return res;
+    if (attempt < retries && (res.status >= 500 || res.status === 429)) {
+      console.warn(`Fetch ${url} failed (${res.status}), retry ${attempt + 1}/${retries} in ${backoffMs}ms`);
+      await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
+      continue;
+    }
+    throw new Error(`Fetch failed (${res.status}) after ${attempt + 1} attempts`);
+  }
+  throw new Error("Unreachable");
+}
+
 // ── Weather fetch ──────────────────────────────────────
 
 async function fetchWeatherForZip(zipCode: string, tuning: TuningParams): Promise<ZipWeatherResult> {
-  const geoRes = await fetch(
+  const geoRes = await fetchWithRetry(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode)}&count=1&country=US&format=json`
   );
-  if (!geoRes.ok) throw new Error(`Geocoding failed (${geoRes.status})`);
   const geoData = await geoRes.json();
   if (!geoData.results?.length) throw new Error(`No location for ZIP ${zipCode}`);
 
   const { latitude, longitude } = geoData.results[0];
 
-  const weatherRes = await fetch(
+  const weatherRes = await fetchWithRetry(
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch`
   );
-  if (!weatherRes.ok) throw new Error(`Weather fetch failed (${weatherRes.status})`);
   const weatherData = await weatherRes.json();
   const daily = weatherData.daily;
 
