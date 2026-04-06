@@ -2,20 +2,36 @@
  * daily-weather-job — Daily ZIP cache refresh + Monday email digest + seasonal alerts
  *
  * Runs daily at 11:00 UTC (7am ET). Refreshes weather data for all ZIP codes
- * in the profiles table. On Mondays, sends weekly digest emails via Resend.
- * Every day, checks for seasonal alert triggers and sends one-time milestone emails.
+ * in the profiles table. On Mondays, sends weekly digest emails via the email
+ * queue. Every day, checks for seasonal alert triggers and enqueues one-time
+ * milestone emails.
  *
  * Manual trigger: POST with optional JSON body:
  *   { "forceEmail": true, "testZip": "01545" }
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  type TuningParams,
+  type ZipWeatherResult,
+  type SeasonalAlert,
+  getTuningParams,
+  fetchWeatherForZip,
+  personalizeForUser,
+  evaluateSeasonalState,
+  determineSeasonalAlert,
+} from "../_shared/recommendation.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+// Email queue constants
+const SITE_NAME = "ThirstyGrass";
+const SENDER_DOMAIN = "notify.thirstygrass.com";
+const FROM_EMAIL = `${SITE_NAME} <hello@thirstygrass.com>`;
+const REPLY_TO = "hello@thirstygrass.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,295 +55,198 @@ interface Profile {
   timezone: string | null;
 }
 
-interface ZipWeatherResult {
-  rain_5d: number;
-  rain_3d: number;
-  forecast_5d: number;
-  forecast_3d: number;
-  et_loss_7d: number;
-  deficit: number;
-  recommendation: "WATER" | "MONITOR" | "SKIP";
-  recommendation_reason: string;
-  avgHigh7d: number;
-  forecastLow5d: number;
-}
+// ── Email queue helper ────────────────────────────────
 
-interface TuningParams {
-  saturation_guard_inches: number;
-  saturation_guard_days: number;
-  water_threshold: number;
-  monitor_threshold: number;
-  cool_season_multiplier: number;
-  warm_season_multiplier: number;
-  mixed_multiplier: number;
-}
+async function enqueueEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  label: string;
+  userId: string;
+  date: string;
+  metadata?: Record<string, any>;
+}): Promise<{ success: boolean; messageId: string }> {
+  const messageId = crypto.randomUUID();
+  const idempotencyKey = `${params.label}-${params.userId}-${params.date}`;
 
-const DEFAULTS: TuningParams = {
-  saturation_guard_inches: 0.5,
-  saturation_guard_days: 3,
-  water_threshold: 0.25,
-  monitor_threshold: 0.05,
-  cool_season_multiplier: 1.25,
-  warm_season_multiplier: 0.75,
-  mixed_multiplier: 1.0,
-};
+  // Log pending BEFORE enqueue
+  await supabase.from("email_send_log").insert({
+    message_id: messageId,
+    template_name: params.label,
+    recipient_email: params.to,
+    status: "pending",
+    metadata: params.metadata || null,
+  });
 
-// ── Tuning params ──────────────────────────────────────
+  const { error } = await supabase.rpc("enqueue_email", {
+    queue_name: "transactional_emails",
+    payload: {
+      message_id: messageId,
+      to: params.to,
+      from: FROM_EMAIL,
+      reply_to: REPLY_TO,
+      sender_domain: SENDER_DOMAIN,
+      subject: params.subject,
+      html: params.html,
+      purpose: "transactional",
+      label: params.label,
+      idempotency_key: idempotencyKey,
+      queued_at: new Date().toISOString(),
+    },
+  });
 
-async function getTuningParams(): Promise<TuningParams> {
-  try {
-    const { data } = await supabase.from("admin_settings").select("key, value");
-    if (data && data.length > 0) {
-      const map: Record<string, string> = {};
-      for (const row of data) map[row.key] = row.value;
-      return {
-        saturation_guard_inches: parseFloat(map.saturation_guard_inches) || DEFAULTS.saturation_guard_inches,
-        saturation_guard_days: parseInt(map.saturation_guard_days) || DEFAULTS.saturation_guard_days,
-        water_threshold: parseFloat(map.water_threshold) || DEFAULTS.water_threshold,
-        monitor_threshold: parseFloat(map.monitor_threshold) || DEFAULTS.monitor_threshold,
-        cool_season_multiplier: parseFloat(map.cool_season_multiplier) || DEFAULTS.cool_season_multiplier,
-        warm_season_multiplier: parseFloat(map.warm_season_multiplier) || DEFAULTS.warm_season_multiplier,
-        mixed_multiplier: parseFloat(map.mixed_multiplier) || DEFAULTS.mixed_multiplier,
-      };
-    }
-  } catch { /* fall through */ }
-  return { ...DEFAULTS };
-}
-
-// ── Helpers ────────────────────────────────────────────
-
-function cToF(c: number): number {
-  return c * 9 / 5 + 32;
-}
-
-// ── Fetch with retry ──────────────────────────────────
-
-async function fetchWithRetry(url: string, retries = 2, backoffMs = 1000): Promise<Response> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const res = await fetch(url);
-    if (res.ok) return res;
-    if (attempt < retries && (res.status >= 500 || res.status === 429)) {
-      console.warn(`Fetch ${url} failed (${res.status}), retry ${attempt + 1}/${retries} in ${backoffMs}ms`);
-      await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)));
-      continue;
-    }
-    throw new Error(`Fetch failed (${res.status}) after ${attempt + 1} attempts`);
+  if (error) {
+    console.error(`Failed to enqueue ${params.label} email`, { to: params.to, error });
+    await supabase.from("email_send_log").insert({
+      message_id: messageId,
+      template_name: params.label,
+      recipient_email: params.to,
+      status: "failed",
+      error_message: `Enqueue failed: ${error.message}`,
+    });
+    return { success: false, messageId };
   }
-  throw new Error("Unreachable");
+
+  return { success: true, messageId };
 }
 
-// ── Weather fetch ──────────────────────────────────────
+// ── Lawn care tips ─────────────────────────────────────
 
-async function fetchWeatherForZip(
-  zipCode: string,
-  tuning: TuningParams,
-  storedLat?: number | null,
-  storedLng?: number | null,
-): Promise<ZipWeatherResult> {
-  let latitude: number;
-  let longitude: number;
+const TIPS = [
+  "Water deeply and infrequently — 1\" at a time trains roots to go deeper.",
+  "Early morning watering (5–9am) reduces evaporation and fungal risk.",
+  "Mow at the highest setting for your grass type to retain soil moisture.",
+  "A light layer of compost in fall reduces how much water your lawn needs next summer.",
+  "Brown isn't always dead — cool-season grasses go dormant in heat and bounce back.",
+  "Check your sprinkler heads seasonally — one clogged head wastes hundreds of gallons.",
+  "Grass clippings left on the lawn return moisture and nitrogen to the soil.",
+  "Aerate in fall or spring to help water reach roots instead of running off.",
+];
 
-  if (storedLat != null && storedLng != null) {
-    latitude = storedLat;
-    longitude = storedLng;
+function getTipOfTheWeek(): string {
+  const d = new Date();
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return TIPS[week % TIPS.length];
+}
+
+// ── Weather narrative ──────────────────────────────────
+
+function generateNarrative(data: ZipWeatherResult): string {
+  let narrative = "";
+  if (data.forecast_5d > 0.75) {
+    narrative = `Expect ${data.forecast_5d.toFixed(1)}" of rain in the coming days — your lawn should be in good shape.`;
+  } else if (data.forecast_3d > 0.3) {
+    narrative = `Some rain is on the way (${data.forecast_3d.toFixed(1)}" expected in the next 3 days), but it may not be enough.`;
+  } else if (data.rain_5d > 0.75) {
+    narrative = `You got good rainfall this past week (${data.rain_5d.toFixed(1)}" received). The forecast ahead looks drier.`;
   } else {
-    const geoRes = await fetchWithRetry(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode)}&count=1&country=US&format=json`
-    );
-    const geoData = await geoRes.json();
-    if (!geoData.results?.length) throw new Error(`No location for ZIP ${zipCode}`);
-    latitude = geoData.results[0].latitude;
-    longitude = geoData.results[0].longitude;
+    narrative = `It's been dry and the forecast isn't offering much relief — ${data.forecast_5d.toFixed(1)}" expected over the next 5 days.`;
   }
-
-  const weatherRes = await fetchWithRetry(
-    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch`
-  );
-  const weatherData = await weatherRes.json();
-  const daily = weatherData.daily;
-
-  if (!daily?.time || !daily?.precipitation_sum) {
-    throw new Error("Bad weather response");
+  if (data.et_loss_7d > 1.0) {
+    narrative += ` Heat and sun have been pulling moisture out of the soil (${data.et_loss_7d.toFixed(1)}" evaporated this week).`;
   }
-
-  const todayIndex = 7;
-  const sumSlice = (arr: number[], start: number, end: number): number => {
-    let sum = 0;
-    for (let i = Math.max(0, start); i < Math.min(arr.length, end); i++) {
-      sum += arr[i] ?? 0;
-    }
-    return sum;
-  };
-
-  const avgSlice = (arr: number[], start: number, end: number): number => {
-    let sum = 0;
-    let count = 0;
-    for (let i = Math.max(0, start); i < Math.min(arr.length, end); i++) {
-      if (arr[i] != null) { sum += arr[i]; count++; }
-    }
-    return count > 0 ? sum / count : 0;
-  };
-
-  const minSlice = (arr: number[], start: number, end: number): number => {
-    let min = Infinity;
-    for (let i = Math.max(0, start); i < Math.min(arr.length, end); i++) {
-      if (arr[i] != null && arr[i] < min) min = arr[i];
-    }
-    return min === Infinity ? 0 : min;
-  };
-
-  const precip = daily.precipitation_sum;
-  const et = daily.et0_fao_evapotranspiration;
-  const tempMax = daily.temperature_2m_max;
-  const tempMin = daily.temperature_2m_min;
-
-  const rain_3d = sumSlice(precip, todayIndex - 3, todayIndex);
-  const rain_5d = sumSlice(precip, todayIndex - 5, todayIndex);
-  const forecast_3d = sumSlice(precip, todayIndex, todayIndex + 3);
-  const forecast_5d = sumSlice(precip, todayIndex, todayIndex + 5);
-  const et_loss_7d = sumSlice(et, todayIndex - 7, todayIndex) / 25.4;
-
-  // Temperature
-  const avgHigh7d = cToF(avgSlice(tempMax, todayIndex - 7, todayIndex));
-  const forecastLow5d = cToF(minSlice(tempMin, todayIndex, todayIndex + 5));
-
-  // Default Mixed multiplier for ZIP-level cache
-  const deficit = et_loss_7d * tuning.mixed_multiplier - rain_5d - forecast_5d;
-
-  const { recommendation, recommendation_reason } = computeRecommendation(
-    rain_3d, deficit, tuning
-  );
-
-  return { rain_5d, rain_3d, forecast_5d, forecast_3d, et_loss_7d, deficit, recommendation, recommendation_reason, avgHigh7d, forecastLow5d };
+  return narrative;
 }
 
-function computeRecommendation(
-  rain_3d: number,
-  deficit: number,
-  tuning: TuningParams
-): { recommendation: "WATER" | "MONITOR" | "SKIP"; recommendation_reason: string } {
-  if (rain_3d > tuning.saturation_guard_inches) {
-    return {
-      recommendation: "SKIP",
-      recommendation_reason: "Soil is likely saturated from recent rainfall. No watering needed right now.",
-    };
-  }
-  if (deficit > tuning.water_threshold) {
-    return {
-      recommendation: "WATER",
-      recommendation_reason: "Your lawn needs water — recent rainfall and forecast aren't enough to offset evaporation losses.",
-    };
-  }
-  if (deficit > tuning.monitor_threshold) {
-    return {
-      recommendation: "MONITOR",
-      recommendation_reason: "You're borderline. Skip today and check again tomorrow — conditions may resolve on their own.",
-    };
-  }
-  return {
-    recommendation: "SKIP",
-    recommendation_reason: "Rain and forecast precipitation have your lawn covered. No watering needed this week.",
-  };
-}
+// ── Email HTML builder (weekly digest) ─────────────────
 
-// ── Personalize recommendation for a user's grass type ─
+function buildEmailHtml(
+  data: ZipWeatherResult,
+  personal: { recommendation: string; recommendation_reason: string; deficit: number },
+  narrative: string,
+  tip: string,
+  lawnSizeAcres: number | null,
+  dashboardUrl: string,
+  unsubscribeUrl: string
+): string {
+  const statusColors: Record<string, string> = { WATER: "#dc2626", MONITOR: "#d97706", SKIP: "#16a34a" };
+  const statusLabels: Record<string, string> = { WATER: "💧 WATER", MONITOR: "⚠️ MONITOR", SKIP: "✅ SKIP" };
+  const color = statusColors[personal.recommendation];
+  const label = statusLabels[personal.recommendation];
 
-function personalizeForUser(
-  cached: ZipWeatherResult,
-  grassType: string | null,
-  tuning: TuningParams
-): { recommendation: "WATER" | "MONITOR" | "SKIP"; recommendation_reason: string; deficit: number } {
-  const gt = grassType || "Mixed";
-
-  // Check seasonal state FIRST — override deficit logic if dormant/frost
-  const { seasonalState, seasonalMessage } = evaluateSeasonalState(
-    cached.avgHigh7d, cached.forecastLow5d, gt
-  );
-
-  if (seasonalState !== "ACTIVE") {
-    return {
-      recommendation: "SKIP",
-      recommendation_reason: seasonalMessage,
-      deficit: 0,
-    };
+  let wateringBlock = "";
+  if (personal.recommendation === "WATER" && lawnSizeAcres && lawnSizeAcres > 0) {
+    const lawnSqFt = lawnSizeAcres * 43560;
+    const gallonsNeeded = personal.deficit * lawnSqFt * 0.623;
+    const minutes = Math.ceil(gallonsNeeded / 2);
+    wateringBlock = `
+        <tr><td style="padding:16px 30px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0fdf4;border-radius:8px;">
+            <tr><td style="padding:16px 20px;text-align:center;">
+              <span style="font-size:24px;font-weight:bold;color:#16a34a;">⏱ ${minutes} minutes</span><br>
+              <span style="font-size:13px;color:#374151;">Run your sprinklers for ${minutes} minutes</span><br>
+              <span style="font-size:11px;color:#9ca3af;">Based on your ${lawnSizeAcres} acre lawn at 2 GPM flow rate</span>
+            </td></tr>
+          </table>
+        </td></tr>`;
   }
 
-  const multiplier =
-    gt === "Cool-Season" ? tuning.cool_season_multiplier :
-    gt === "Warm-Season" ? tuning.warm_season_multiplier :
-    tuning.mixed_multiplier;
-
-  const personalDeficit = cached.et_loss_7d * multiplier - cached.rain_5d - cached.forecast_5d;
-  const { recommendation, recommendation_reason } = computeRecommendation(
-    cached.rain_3d, personalDeficit, tuning
-  );
-  return { recommendation, recommendation_reason, deficit: personalDeficit };
-}
-
-// ── Seasonal state evaluation ─────────────────────────
-
-type SeasonalAlert = "DORMANCY_START" | "DORMANCY_END" | "FROST_INCOMING" | null;
-
-function evaluateSeasonalState(
-  avgHigh7d: number,
-  forecastLow5d: number,
-  grassType: string,
-): { seasonalState: "ACTIVE" | "DORMANT" | "FROST_RISK"; seasonalMessage: string } {
-  const dormancyThreshold =
-    grassType === "Cool-Season" ? 45 :
-    grassType === "Warm-Season" ? 55 : 50;
-
-  if (forecastLow5d <= 34) {
-    return {
-      seasonalState: "FROST_RISK",
-      seasonalMessage: `Frost expected in the next 5 days. Avoid watering — frozen water in soil can damage roots.`,
-    };
-  }
-  if (avgHigh7d < dormancyThreshold) {
-    return {
-      seasonalState: "DORMANT",
-      seasonalMessage: `Your lawn is dormant — 7-day average high is ${Math.round(avgHigh7d)}°F, below the ${dormancyThreshold}°F threshold for your grass type.`,
-    };
-  }
-  return { seasonalState: "ACTIVE", seasonalMessage: "" };
-}
-
-function determineSeasonalAlert(
-  currentState: "ACTIVE" | "DORMANT" | "FROST_RISK",
-  lastAlertSent: string | null,
-  lastAlertDate: string | null,
-): SeasonalAlert {
-  const today = new Date().toISOString().slice(0, 10);
-
-  // How many days since last alert
-  let daysSinceLastAlert = 999;
-  if (lastAlertDate) {
-    const last = new Date(lastAlertDate);
-    const now = new Date(today);
-    daysSinceLastAlert = Math.floor((now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
-  }
-
-  if (currentState === "FROST_RISK") {
-    // Re-alert if last alert wasn't FROST_INCOMING or was >7 days ago
-    if (lastAlertSent !== "FROST_INCOMING" || daysSinceLastAlert > 7) {
-      return "FROST_INCOMING";
-    }
-    return null;
-  }
-
-  if (currentState === "DORMANT") {
-    if (lastAlertSent !== "DORMANCY_START" || daysSinceLastAlert > 7) {
-      return "DORMANCY_START";
-    }
-    return null;
-  }
-
-  // ACTIVE
-  if (currentState === "ACTIVE" && (lastAlertSent === "DORMANCY_START" || lastAlertSent === "FROST_INCOMING")) {
-    return "DORMANCY_END";
-  }
-
-  return null;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;">
+    <tr><td align="center" style="padding:30px 15px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:12px;overflow:hidden;">
+        <tr><td style="padding:24px 30px;text-align:center;">
+          <span style="font-size:22px;font-weight:bold;color:#16a34a;">ThirstyGrass</span>
+          <p style="margin:6px 0 0;font-size:13px;color:#9ca3af;">Your weekly lawn watering report</p>
+        </td></tr>
+        <tr><td style="padding:0 30px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr><td style="background-color:${color};border-radius:10px;padding:22px 20px;text-align:center;">
+              <span style="font-size:28px;font-weight:bold;color:#ffffff;letter-spacing:1px;">${label}</span>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:16px 30px 4px;">
+          <p style="margin:0;font-size:15px;color:#374151;line-height:1.5;">${personal.recommendation_reason}</p>
+        </td></tr>
+        <tr><td style="padding:8px 30px 20px;">
+          <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6;">${narrative}</p>
+        </td></tr>
+        <tr><td style="padding:0 30px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;">
+            <tr>
+              <td width="33%" style="padding:16px 8px;text-align:center;vertical-align:top;">
+                <span style="font-size:20px;">🌧</span><br>
+                <span style="font-size:16px;font-weight:bold;color:#111827;">${data.rain_5d.toFixed(1)}"</span><br>
+                <span style="font-size:11px;color:#9ca3af;">Rain this week</span>
+              </td>
+              <td width="33%" style="padding:16px 8px;text-align:center;vertical-align:top;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
+                <span style="font-size:20px;">☀️</span><br>
+                <span style="font-size:16px;font-weight:bold;color:#111827;">${data.et_loss_7d.toFixed(1)}"</span><br>
+                <span style="font-size:11px;color:#9ca3af;">Evaporated</span>
+              </td>
+              <td width="33%" style="padding:16px 8px;text-align:center;vertical-align:top;">
+                <span style="font-size:20px;">⛅</span><br>
+                <span style="font-size:16px;font-weight:bold;color:#111827;">${data.forecast_5d.toFixed(1)}"</span><br>
+                <span style="font-size:11px;color:#9ca3af;">Forecast</span>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+        ${wateringBlock}
+        <tr><td style="padding:20px 30px;">
+          <p style="margin:0 0 6px;font-size:10px;font-weight:bold;color:#16a34a;text-transform:uppercase;letter-spacing:1.5px;">Tip of the Week</p>
+          <p style="margin:0;font-size:13px;color:#374151;font-style:italic;line-height:1.5;">${tip}</p>
+        </td></tr>
+        <tr><td style="padding:20px 30px;text-align:center;">
+          <a href="${dashboardUrl}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-size:14px;font-weight:bold;padding:12px 24px;border-radius:6px;text-decoration:none;">View My Dashboard</a>
+        </td></tr>
+        <tr><td style="padding:20px 30px;text-align:center;border-top:1px solid #e5e7eb;">
+          <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">You're receiving this because you have a ThirstyGrass account. We send watering updates every Monday.</p>
+          <a href="${unsubscribeUrl}" style="font-size:12px;color:#9ca3af;text-decoration:underline;">Unsubscribe</a>
+          <p style="margin:10px 0 0;font-size:11px;color:#d1d5db;">© ${new Date().getFullYear()} ThirstyGrass by 110 Labs</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
 }
 
 // ── Seasonal alert email HTML builders ────────────────
@@ -444,145 +363,6 @@ function getSeasonalSubject(alertType: SeasonalAlert): string {
   }
 }
 
-// ── Lawn care tips ─────────────────────────────────────
-
-const TIPS = [
-  "Water deeply and infrequently — 1\" at a time trains roots to go deeper.",
-  "Early morning watering (5–9am) reduces evaporation and fungal risk.",
-  "Mow at the highest setting for your grass type to retain soil moisture.",
-  "A light layer of compost in fall reduces how much water your lawn needs next summer.",
-  "Brown isn't always dead — cool-season grasses go dormant in heat and bounce back.",
-  "Check your sprinkler heads seasonally — one clogged head wastes hundreds of gallons.",
-  "Grass clippings left on the lawn return moisture and nitrogen to the soil.",
-  "Aerate in fall or spring to help water reach roots instead of running off.",
-];
-
-function getTipOfTheWeek(): string {
-  const d = new Date();
-  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return TIPS[week % TIPS.length];
-}
-
-// ── Weather narrative ──────────────────────────────────
-
-function generateNarrative(data: ZipWeatherResult): string {
-  let narrative = "";
-  if (data.forecast_5d > 0.75) {
-    narrative = `Expect ${data.forecast_5d.toFixed(1)}" of rain in the coming days — your lawn should be in good shape.`;
-  } else if (data.forecast_3d > 0.3) {
-    narrative = `Some rain is on the way (${data.forecast_3d.toFixed(1)}" expected in the next 3 days), but it may not be enough.`;
-  } else if (data.rain_5d > 0.75) {
-    narrative = `You got good rainfall this past week (${data.rain_5d.toFixed(1)}" received). The forecast ahead looks drier.`;
-  } else {
-    narrative = `It's been dry and the forecast isn't offering much relief — ${data.forecast_5d.toFixed(1)}" expected over the next 5 days.`;
-  }
-  if (data.et_loss_7d > 1.0) {
-    narrative += ` Heat and sun have been pulling moisture out of the soil (${data.et_loss_7d.toFixed(1)}" evaporated this week).`;
-  }
-  return narrative;
-}
-
-// ── Email HTML builder ─────────────────────────────────
-
-function buildEmailHtml(
-  data: ZipWeatherResult,
-  personal: { recommendation: string; recommendation_reason: string; deficit: number },
-  narrative: string,
-  tip: string,
-  lawnSizeAcres: number | null,
-  dashboardUrl: string,
-  unsubscribeUrl: string
-): string {
-  const statusColors: Record<string, string> = { WATER: "#dc2626", MONITOR: "#d97706", SKIP: "#16a34a" };
-  const statusLabels: Record<string, string> = { WATER: "💧 WATER", MONITOR: "⚠️ MONITOR", SKIP: "✅ SKIP" };
-  const color = statusColors[personal.recommendation];
-  const label = statusLabels[personal.recommendation];
-
-  let wateringBlock = "";
-  if (personal.recommendation === "WATER" && lawnSizeAcres && lawnSizeAcres > 0) {
-    const lawnSqFt = lawnSizeAcres * 43560;
-    const gallonsNeeded = personal.deficit * lawnSqFt * 0.623;
-    const minutes = Math.ceil(gallonsNeeded / 2);
-    wateringBlock = `
-        <tr><td style="padding:16px 30px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0fdf4;border-radius:8px;">
-            <tr><td style="padding:16px 20px;text-align:center;">
-              <span style="font-size:24px;font-weight:bold;color:#16a34a;">⏱ ${minutes} minutes</span><br>
-              <span style="font-size:13px;color:#374151;">Run your sprinklers for ${minutes} minutes</span><br>
-              <span style="font-size:11px;color:#9ca3af;">Based on your ${lawnSizeAcres} acre lawn at 2 GPM flow rate</span>
-            </td></tr>
-          </table>
-        </td></tr>`;
-  }
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;">
-    <tr><td align="center" style="padding:30px 15px;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:12px;overflow:hidden;">
-        <tr><td style="padding:24px 30px;text-align:center;">
-          <span style="font-size:22px;font-weight:bold;color:#16a34a;">ThirstyGrass</span>
-          <p style="margin:6px 0 0;font-size:13px;color:#9ca3af;">Your weekly lawn watering report</p>
-        </td></tr>
-        <tr><td style="padding:0 30px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            <tr><td style="background-color:${color};border-radius:10px;padding:22px 20px;text-align:center;">
-              <span style="font-size:28px;font-weight:bold;color:#ffffff;letter-spacing:1px;">${label}</span>
-            </td></tr>
-          </table>
-        </td></tr>
-        <tr><td style="padding:16px 30px 4px;">
-          <p style="margin:0;font-size:15px;color:#374151;line-height:1.5;">${personal.recommendation_reason}</p>
-        </td></tr>
-        <tr><td style="padding:8px 30px 20px;">
-          <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6;">${narrative}</p>
-        </td></tr>
-        <tr><td style="padding:0 30px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;">
-            <tr>
-              <td width="33%" style="padding:16px 8px;text-align:center;vertical-align:top;">
-                <span style="font-size:20px;">🌧</span><br>
-                <span style="font-size:16px;font-weight:bold;color:#111827;">${data.rain_5d.toFixed(1)}"</span><br>
-                <span style="font-size:11px;color:#9ca3af;">Rain this week</span>
-              </td>
-              <td width="33%" style="padding:16px 8px;text-align:center;vertical-align:top;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
-                <span style="font-size:20px;">☀️</span><br>
-                <span style="font-size:16px;font-weight:bold;color:#111827;">${data.et_loss_7d.toFixed(1)}"</span><br>
-                <span style="font-size:11px;color:#9ca3af;">Evaporated</span>
-              </td>
-              <td width="33%" style="padding:16px 8px;text-align:center;vertical-align:top;">
-                <span style="font-size:20px;">⛅</span><br>
-                <span style="font-size:16px;font-weight:bold;color:#111827;">${data.forecast_5d.toFixed(1)}"</span><br>
-                <span style="font-size:11px;color:#9ca3af;">Forecast</span>
-              </td>
-            </tr>
-          </table>
-        </td></tr>
-        ${wateringBlock}
-        <tr><td style="padding:20px 30px;">
-          <p style="margin:0 0 6px;font-size:10px;font-weight:bold;color:#16a34a;text-transform:uppercase;letter-spacing:1.5px;">Tip of the Week</p>
-          <p style="margin:0;font-size:13px;color:#374151;font-style:italic;line-height:1.5;">${tip}</p>
-        </td></tr>
-        <tr><td style="padding:20px 30px;text-align:center;">
-          <a href="${dashboardUrl}" style="display:inline-block;background-color:#16a34a;color:#ffffff;font-size:14px;font-weight:bold;padding:12px 24px;border-radius:6px;text-decoration:none;">View My Dashboard</a>
-        </td></tr>
-        <tr><td style="padding:20px 30px;text-align:center;border-top:1px solid #e5e7eb;">
-          <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">You're receiving this because you have a ThirstyGrass account. We send watering updates every Monday.</p>
-          <a href="${unsubscribeUrl}" style="font-size:12px;color:#9ca3af;text-decoration:underline;">Unsubscribe</a>
-          <p style="margin:10px 0 0;font-size:11px;color:#d1d5db;">© ${new Date().getFullYear()} ThirstyGrass by 110 Labs</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-}
-
 // ── Send seasonal alert email ─────────────────────────
 
 async function sendSeasonalAlert(
@@ -594,6 +374,7 @@ async function sendSeasonalAlert(
 
   const grassType = profile.grass_type || "Mixed";
   const unsubscribeUrl = `https://thirstygrass.com/email-unsubscribe?user_id=${profile.id}`;
+  const today = new Date().toISOString().slice(0, 10);
 
   // Generate magic link
   let dashboardUrl = "https://thirstygrass.com/dashboard";
@@ -613,42 +394,26 @@ async function sendSeasonalAlert(
     dashboardUrl, unsubscribeUrl
   );
   const subject = getSeasonalSubject(alertType);
-
-  const resendRes = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
-      from: "ThirstyGrass <hello@thirstygrass.com>",
-      reply_to: "hello@thirstygrass.com",
-      to: [profile.email],
-      subject,
-      html: emailHtml,
-    }),
-  });
-
-  const resendBody = await resendRes.json().catch(() => ({}));
   const templateName = `seasonal-${alertType.toLowerCase().replace(/_/g, "-")}`;
 
-  if (resendRes.ok) {
-    await supabase.from("email_send_log").insert({
-      template_name: templateName,
-      recipient_email: profile.email,
-      status: "sent",
-      message_id: resendBody?.id || null,
-      metadata: {
-        alert_type: alertType,
-        zip_code: profile.zip_code,
-        grass_type: grassType,
-        avg_high_7d: cached.avgHigh7d,
-        forecast_low_5d: cached.forecastLow5d,
-      },
-    });
+  const { success } = await enqueueEmail({
+    to: profile.email,
+    subject,
+    html: emailHtml,
+    label: templateName,
+    userId: profile.id,
+    date: today,
+    metadata: {
+      alert_type: alertType,
+      zip_code: profile.zip_code,
+      grass_type: grassType,
+      avg_high_7d: cached.avgHigh7d,
+      forecast_low_5d: cached.forecastLow5d,
+    },
+  });
 
+  if (success) {
     // Update profile tracking
-    const today = new Date().toISOString().slice(0, 10);
     await supabase
       .from("profiles")
       .update({
@@ -656,20 +421,9 @@ async function sendSeasonalAlert(
         last_seasonal_alert_date: today,
       })
       .eq("id", profile.id);
-
-    return true;
-  } else {
-    const errText = JSON.stringify(resendBody);
-    console.error(`Seasonal alert email error for ${profile.email}: ${errText}`);
-    await supabase.from("email_send_log").insert({
-      template_name: templateName,
-      recipient_email: profile.email,
-      status: "failed",
-      error_message: errText,
-      metadata: { alert_type: alertType, zip_code: profile.zip_code },
-    });
-    return false;
   }
+
+  return success;
 }
 
 // ── Main Handler ───────────────────────────────────────
@@ -691,7 +445,7 @@ Deno.serve(async (req) => {
       } catch { /* empty body = normal cron run */ }
     }
 
-    const tuning = await getTuningParams();
+    const tuning = await getTuningParams(supabase);
 
     // ── STEP 1: Get unique ZIP codes with stored coords ─
     let zipCodes: { zip: string; lat: number | null; lng: number | null }[] = [];
@@ -832,7 +586,7 @@ Deno.serve(async (req) => {
         );
 
         if (alertType) {
-          console.log(`Sending ${alertType} alert to ${profile.email}`);
+          console.log(`Enqueuing ${alertType} alert to ${profile.email}`);
           const success = await sendSeasonalAlert(profile, alertType, cached);
           if (success) {
             seasonalSent++;
@@ -848,7 +602,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Seasonal alerts: sent=${seasonalSent}, errors=${seasonalErrors}`);
+    console.log(`Seasonal alerts: enqueued=${seasonalSent}, errors=${seasonalErrors}`);
 
     // ── STEP 6: Check if Monday (ET timezone) ────────
     const now = new Date();
@@ -880,6 +634,7 @@ Deno.serve(async (req) => {
 
     const tip = getTipOfTheWeek();
     const fallbackDashboardUrl = "https://thirstygrass.com/dashboard";
+    const today = new Date().toISOString().slice(0, 10);
     let sent = 0;
     let emailErrors = 0;
     const subjectMap: Record<string, string> = {
@@ -953,51 +708,29 @@ Deno.serve(async (req) => {
         );
         const subject = subjectMap[personal.recommendation] || "Your weekly lawn report";
 
-        const resendRes = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${RESEND_API_KEY}`,
-          },
-          body: JSON.stringify({
-            from: "ThirstyGrass <hello@thirstygrass.com>",
-            reply_to: "hello@thirstygrass.com",
-            to: [profile.email],
+        const { success } = await enqueueEmail({
+          to: profile.email,
+          subject,
+          html: emailHtml,
+          label: "weekly-digest",
+          userId: profile.id,
+          date: today,
+          metadata: {
+            recommendation: personal.recommendation,
+            zip_code: profile.zip_code,
             subject,
-            html: emailHtml,
-          }),
+            rain_5d: cached.rain_5d,
+            forecast_5d: cached.forecast_5d,
+            et_loss_7d: cached.et_loss_7d,
+            deficit: personal.deficit,
+            lawn_size_acres: profile.lawn_size_acres,
+          },
         });
 
-        const resendBody = await resendRes.json().catch(() => ({}));
-        if (resendRes.ok) {
+        if (success) {
           sent++;
-          await supabase.from("email_send_log").insert({
-            template_name: "weekly-digest",
-            recipient_email: profile.email,
-            status: "sent",
-            message_id: resendBody?.id || null,
-            metadata: {
-              recommendation: personal.recommendation,
-              zip_code: profile.zip_code,
-              subject,
-              rain_5d: cached.rain_5d,
-              forecast_5d: cached.forecast_5d,
-              et_loss_7d: cached.et_loss_7d,
-              deficit: personal.deficit,
-              lawn_size_acres: profile.lawn_size_acres,
-            },
-          });
         } else {
-          const errText = JSON.stringify(resendBody);
-          console.error(`Resend error for ${profile.email}: ${errText}`);
           emailErrors++;
-          await supabase.from("email_send_log").insert({
-            template_name: "weekly-digest",
-            recipient_email: profile.email,
-            status: "failed",
-            error_message: errText,
-            metadata: { recommendation: personal.recommendation, zip_code: profile.zip_code },
-          });
         }
 
         // Rate limit protection
@@ -1014,7 +747,7 @@ Deno.serve(async (req) => {
       mode: testZip ? "test" : "full",
       zipsProcessed,
       zipErrors,
-      emailsSent: sent,
+      emailsEnqueued: sent,
       emailErrors,
       seasonalSent,
       seasonalErrors,
