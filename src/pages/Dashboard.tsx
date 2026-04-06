@@ -12,6 +12,7 @@ import LockedFeatureCard from '@/components/LockedFeatureCard';
 import DashboardFeedback from '@/components/DashboardFeedback';
 import SubscriptionManager from '@/components/SubscriptionManager';
 import ReferralShareBlock from '@/components/ReferralShareBlock';
+import SmsSettingsCard from '@/components/SmsSettingsCard';
 import { useUserTier } from '@/hooks/useUserTier';
 import { useReferralInfo } from '@/hooks/useReferralInfo';
 import { RefreshCw, Pencil, MapPin, Leaf, Droplets, Ruler, Timer, Gift, CreditCard } from 'lucide-react';
@@ -39,13 +40,22 @@ const Dashboard = () => {
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [error, setError] = useState('');
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [smsPendingPhone, setSmsPendingPhone] = useState<string | null>(null);
+  const [showSmsBanner, setShowSmsBanner] = useState(false);
 
   // Handle upgrade success return
   useEffect(() => {
     if (searchParams.get('upgraded') === 'true') {
       toast.success('Welcome to ThirstyGrass Pro 🌿');
-      // Clean URL
       window.history.replaceState({}, '', '/dashboard');
+    }
+    const pendingPhone = searchParams.get('sms_phone');
+    if (pendingPhone) {
+      setSmsPendingPhone(pendingPhone);
+      setShowSmsBanner(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('sms_phone');
+      window.history.replaceState({}, '', url.pathname + url.search);
     }
   }, [searchParams]);
 
@@ -202,20 +212,21 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Daily SMS Alerts — gated */}
-          {isFree ? (
-            <LockedFeatureCard
-              icon="🔒"
-              headline="Daily SMS Alerts"
-              body="Get a text only when your lawn needs attention — rain incoming, watering day, or season change."
-              className="mt-8"
-            />
-          ) : (
-            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
-              <h2 className="text-lg font-semibold text-foreground mb-2">📱 Daily SMS Alerts</h2>
-              <p className="text-sm text-muted-foreground">SMS alerts are active. You'll receive texts when your lawn needs attention.</p>
+          {/* SMS Verification Banner */}
+          {showSmsBanner && (
+            <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 mt-6 flex items-start justify-between gap-3">
+              <p className="text-sm text-foreground">
+                📱 Check your phone — enter the verification code we sent to confirm your number.
+              </p>
+              <button onClick={() => setShowSmsBanner(false)} className="text-muted-foreground hover:text-foreground text-lg leading-none">×</button>
             </div>
           )}
+
+          {/* Daily SMS Alerts */}
+          <SmsSettingsCard
+            pendingPhone={smsPendingPhone}
+            onPendingPhoneHandled={() => setSmsPendingPhone(null)}
+          />
 
           {/* 30-Day History — gated */}
           {isFree ? (
