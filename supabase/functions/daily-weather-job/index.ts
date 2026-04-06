@@ -693,29 +693,35 @@ Deno.serve(async (req) => {
 
     const tuning = await getTuningParams();
 
-    // ── STEP 1: Get unique ZIP codes ─────────────────
-    let zipCodes: string[] = [];
+    // ── STEP 1: Get unique ZIP codes with stored coords ─
+    let zipCodes: { zip: string; lat: number | null; lng: number | null }[] = [];
     if (testZip) {
-      zipCodes = [testZip];
+      zipCodes = [{ zip: testZip, lat: null, lng: null }];
     } else {
       let offset = 0;
       const pageSize = 500;
-      const zipSet = new Set<string>();
+      const zipMap = new Map<string, { lat: number | null; lng: number | null }>();
       while (true) {
         const { data, error } = await supabase
           .from("profiles")
-          .select("zip_code")
+          .select("zip_code, latitude, longitude")
           .not("zip_code", "is", null)
           .range(offset, offset + pageSize - 1);
         if (error) throw new Error(`DB query failed: ${error.message}`);
         if (!data || data.length === 0) break;
         for (const row of data) {
-          if (row.zip_code) zipSet.add(row.zip_code);
+          if (row.zip_code && !zipMap.has(row.zip_code)) {
+            zipMap.set(row.zip_code, { lat: row.latitude, lng: row.longitude });
+          }
         }
         if (data.length < pageSize) break;
         offset += pageSize;
       }
-      zipCodes = Array.from(zipSet);
+      zipCodes = Array.from(zipMap.entries()).map(([zip, coords]) => ({
+        zip,
+        lat: coords.lat,
+        lng: coords.lng,
+      }));
     }
 
     console.log(`Processing ${zipCodes.length} unique ZIP codes`);
