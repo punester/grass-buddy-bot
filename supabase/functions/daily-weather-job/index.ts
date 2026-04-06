@@ -876,26 +876,28 @@ Deno.serve(async (req) => {
         // Get cached ZIP data
         let cached = zipCache.get(profile.zip_code);
         if (!cached) {
-          const { data: row } = await supabase
+          // Also try to get real temperatures from weather_data JSON
+          const { data: fullRow } = await supabase
             .from("zip_cache")
-            .select("rain_5d, forecast_5d, et_loss_7d, deficit, recommendation, recommendation_reason")
+            .select("rain_5d, forecast_5d, et_loss_7d, deficit, recommendation, recommendation_reason, weather_data")
             .eq("zip_code", profile.zip_code)
             .single();
-          if (!row) {
+          if (!fullRow) {
             console.warn(`No cache for ZIP ${profile.zip_code}, skipping ${profile.email}`);
             continue;
           }
+          const wd = fullRow.weather_data as Record<string, any> | null;
           cached = {
-            rain_5d: Number(row.rain_5d),
+            rain_5d: Number(fullRow.rain_5d),
             rain_3d: 0,
-            forecast_5d: Number(row.forecast_5d),
+            forecast_5d: Number(fullRow.forecast_5d),
             forecast_3d: 0,
-            et_loss_7d: Number(row.et_loss_7d),
-            deficit: Number(row.deficit),
-            recommendation: row.recommendation as "WATER" | "MONITOR" | "SKIP",
-            recommendation_reason: row.recommendation_reason || "",
-            avgHigh7d: 80,
-            forecastLow5d: 50,
+            et_loss_7d: Number(fullRow.et_loss_7d),
+            deficit: Number(fullRow.deficit),
+            recommendation: fullRow.recommendation as "WATER" | "MONITOR" | "SKIP",
+            recommendation_reason: fullRow.recommendation_reason || "",
+            avgHigh7d: wd?.avgHigh7d ?? 80,
+            forecastLow5d: wd?.forecastLow5d ?? 50,
           };
         }
 
