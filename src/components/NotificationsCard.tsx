@@ -67,9 +67,11 @@ const NotificationsCard: React.FC = () => {
     }
     setLoading(true);
     try {
+      console.log('[SMS] Sending verification to:', e164);
       const { data, error: fnError } = await supabase.functions.invoke('verify-phone', {
         body: { action: 'send', phoneNumber: e164 },
       });
+      console.log('[SMS] Response:', { data, fnError });
       if (fnError) throw fnError;
       if (data?.success) {
         setSubmittedPhone(e164);
