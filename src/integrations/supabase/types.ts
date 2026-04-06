@@ -151,18 +151,26 @@ export type Database = {
           grass_type: string | null
           id: string
           irrigation_type: string | null
+          last_recommendation: string | null
           last_seasonal_alert_date: string | null
           last_seasonal_alert_sent: string | null
+          latitude: number | null
           lawn_size_acres: number | null
+          longitude: number | null
           premium_source: string | null
           premium_until: string | null
           referral_code: string
           referred_by: string | null
+          sms_last_sent_at: string | null
+          sms_opted_in: boolean
+          sms_phone: string | null
+          sms_phone_verified: boolean
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_cancel_at_period_end: boolean
           subscription_ends_at: string | null
           tier: string
+          timezone: string | null
           utm_campaign: string | null
           utm_content: string | null
           utm_medium: string | null
@@ -177,18 +185,26 @@ export type Database = {
           grass_type?: string | null
           id: string
           irrigation_type?: string | null
+          last_recommendation?: string | null
           last_seasonal_alert_date?: string | null
           last_seasonal_alert_sent?: string | null
+          latitude?: number | null
           lawn_size_acres?: number | null
+          longitude?: number | null
           premium_source?: string | null
           premium_until?: string | null
           referral_code?: string
           referred_by?: string | null
+          sms_last_sent_at?: string | null
+          sms_opted_in?: boolean
+          sms_phone?: string | null
+          sms_phone_verified?: boolean
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_cancel_at_period_end?: boolean
           subscription_ends_at?: string | null
           tier?: string
+          timezone?: string | null
           utm_campaign?: string | null
           utm_content?: string | null
           utm_medium?: string | null
@@ -203,18 +219,26 @@ export type Database = {
           grass_type?: string | null
           id?: string
           irrigation_type?: string | null
+          last_recommendation?: string | null
           last_seasonal_alert_date?: string | null
           last_seasonal_alert_sent?: string | null
+          latitude?: number | null
           lawn_size_acres?: number | null
+          longitude?: number | null
           premium_source?: string | null
           premium_until?: string | null
           referral_code?: string
           referred_by?: string | null
+          sms_last_sent_at?: string | null
+          sms_opted_in?: boolean
+          sms_phone?: string | null
+          sms_phone_verified?: boolean
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_cancel_at_period_end?: boolean
           subscription_ends_at?: string | null
           tier?: string
+          timezone?: string | null
           utm_campaign?: string | null
           utm_content?: string | null
           utm_medium?: string | null
@@ -271,6 +295,71 @@ export type Database = {
           {
             foreignKeyName: "referrals_referrer_id_fkey"
             columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      short_links: {
+        Row: {
+          code: string
+          created_at: string
+          destination_url: string
+          expires_at: string | null
+          id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          destination_url: string
+          expires_at?: string | null
+          id?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          destination_url?: string
+          expires_at?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      sms_logs: {
+        Row: {
+          alert_type: string
+          created_at: string
+          error_message: string | null
+          id: string
+          message_body: string
+          status: string
+          twilio_sid: string | null
+          user_id: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_body: string
+          status: string
+          twilio_sid?: string | null
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_body?: string
+          status?: string
+          twilio_sid?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_logs_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
