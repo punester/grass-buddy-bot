@@ -66,6 +66,15 @@ const Onboarding = () => {
       setZipError(error);
       return;
     }
+    // Validate phone if SMS opt-in is checked
+    if (smsOptIn && smsPhone.trim()) {
+      const e164 = formatPhoneE164(smsPhone);
+      if (!/^\+[1-9]\d{6,14}$/.test(e164)) {
+        setPhoneError('Enter a valid phone number (e.g. +16175551234)');
+        return;
+      }
+      setPhoneError('');
+    }
     if (!agreedToTerms) {
       toast.error('Please agree to the Terms of Service and Privacy Policy');
       return;
