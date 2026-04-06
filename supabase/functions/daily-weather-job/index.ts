@@ -34,6 +34,9 @@ interface Profile {
   email_unsubscribed: boolean | null;
   last_seasonal_alert_sent: string | null;
   last_seasonal_alert_date: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  timezone: string | null;
 }
 
 interface ZipWeatherResult {
@@ -115,14 +118,27 @@ async function fetchWithRetry(url: string, retries = 2, backoffMs = 1000): Promi
 
 // ── Weather fetch ──────────────────────────────────────
 
-async function fetchWeatherForZip(zipCode: string, tuning: TuningParams): Promise<ZipWeatherResult> {
-  const geoRes = await fetchWithRetry(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode)}&count=1&country=US&format=json`
-  );
-  const geoData = await geoRes.json();
-  if (!geoData.results?.length) throw new Error(`No location for ZIP ${zipCode}`);
+async function fetchWeatherForZip(
+  zipCode: string,
+  tuning: TuningParams,
+  storedLat?: number | null,
+  storedLng?: number | null,
+): Promise<ZipWeatherResult> {
+  let latitude: number;
+  let longitude: number;
 
-  const { latitude, longitude } = geoData.results[0];
+  if (storedLat != null && storedLng != null) {
+    latitude = storedLat;
+    longitude = storedLng;
+  } else {
+    const geoRes = await fetchWithRetry(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode)}&count=1&country=US&format=json`
+    );
+    const geoData = await geoRes.json();
+    if (!geoData.results?.length) throw new Error(`No location for ZIP ${zipCode}`);
+    latitude = geoData.results[0].latitude;
+    longitude = geoData.results[0].longitude;
+  }
 
   const weatherRes = await fetchWithRetry(
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min&past_days=7&forecast_days=7&timezone=auto&precipitation_unit=inch`
