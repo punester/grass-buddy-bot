@@ -791,7 +791,7 @@ Deno.serve(async (req) => {
       while (true) {
         let query = supabase
           .from("profiles")
-          .select("id, email, zip_code, grass_type, lawn_size_acres, email_unsubscribed, last_seasonal_alert_sent, last_seasonal_alert_date")
+          .select("id, email, zip_code, grass_type, lawn_size_acres, email_unsubscribed, last_seasonal_alert_sent, last_seasonal_alert_date, latitude, longitude, timezone")
           .not("zip_code", "is", null)
           .not("email", "is", null);
 
