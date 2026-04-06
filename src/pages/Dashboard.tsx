@@ -6,27 +6,22 @@ import NavBar from '@/components/NavBar';
 import Footer from '@/components/Footer';
 import AnimatedBackground from '@/components/AnimatedBackground';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSettings } from '@/contexts/SettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchPrecipitationData } from '@/utils/weatherApi';
 import PrecipitationDisplay, { PrecipitationData } from '@/components/PrecipitationDisplay';
 import LockedFeatureCard from '@/components/LockedFeatureCard';
 import DashboardFeedback from '@/components/DashboardFeedback';
-import SubscriptionManager from '@/components/SubscriptionManager';
 import ReferralShareBlock from '@/components/ReferralShareBlock';
-import SmsSettingsCard from '@/components/SmsSettingsCard';
+import NotificationsCard from '@/components/NotificationsCard';
 import { useUserTier } from '@/hooks/useUserTier';
 import { useReferralInfo } from '@/hooks/useReferralInfo';
-import { RefreshCw, Pencil, MapPin, Leaf, Droplets, Ruler, Timer, Gift, CreditCard } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { RefreshCw, Pencil, MapPin, Leaf, Droplets, Ruler } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Profile {
   zip_code: string | null;
   grass_type: string | null;
   irrigation_type: string | null;
-  subscription_cancel_at_period_end: boolean;
-  subscription_ends_at: string | null;
   lawn_size_acres: number | null;
 }
 
@@ -35,29 +30,16 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isFree, isPaid } = useUserTier();
-  const { annualPrice } = useSettings();
   const { programActive, threshold, referralCode, referralCount, premiumSource, premiumUntil } = useReferralInfo();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [weatherData, setWeatherData] = useState<PrecipitationData | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [error, setError] = useState('');
-  const [upgradeLoading, setUpgradeLoading] = useState(false);
-  const [smsPendingPhone, setSmsPendingPhone] = useState<string | null>(null);
-  const [showSmsBanner, setShowSmsBanner] = useState(false);
 
-  // Handle upgrade success return
   useEffect(() => {
     if (searchParams.get('upgraded') === 'true') {
       toast.success('Welcome to ThirstyGrass Pro 🌿');
       window.history.replaceState({}, '', '/dashboard');
-    }
-    const pendingPhone = searchParams.get('sms_phone');
-    if (pendingPhone) {
-      setSmsPendingPhone(pendingPhone);
-      setShowSmsBanner(true);
-      const url = new URL(window.location.href);
-      url.searchParams.delete('sms_phone');
-      window.history.replaceState({}, '', url.pathname + url.search);
     }
   }, [searchParams]);
 
@@ -71,7 +53,7 @@ const Dashboard = () => {
     if (!user) return;
     const { data } = await supabase
       .from('profiles')
-      .select('zip_code, grass_type, irrigation_type, subscription_cancel_at_period_end, subscription_ends_at, lawn_size_acres')
+      .select('zip_code, grass_type, irrigation_type, lawn_size_acres')
       .eq('id', user.id)
       .single();
     if (!data || !data.zip_code) {
@@ -117,25 +99,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleUpgrade = async () => {
-    if (!user) return;
-    setUpgradeLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { returnUrl: `${window.location.origin}/dashboard` },
-      });
-      if (error) throw error;
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (e) {
-      toast.error('Failed to start checkout');
-      console.error(e);
-    } finally {
-      setUpgradeLoading(false);
-    }
-  };
-
   if (authLoading) return null;
 
   return (
@@ -143,7 +106,7 @@ const Dashboard = () => {
       <AnimatedBackground />
       <NavBar />
       <main className="flex-1 pt-28 pb-16">
-        <div className="container mx-auto px-4 max-w-5xl">
+        <div className="container mx-auto px-4 max-w-xl">
 
           {/* Refresh button */}
           {weatherData && (
@@ -159,9 +122,14 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Recommendation */}
+          {/* ZONE 1 — Recommendation */}
           {weatherData ? (
-            <PrecipitationDisplay data={weatherData} zipCode={profile?.zip_code || undefined} />
+            <PrecipitationDisplay
+              data={weatherData}
+              zipCode={profile?.zip_code || undefined}
+              lawnSizeAcres={profile?.lawn_size_acres}
+              isPaid={isPaid}
+            />
           ) : isLoadingWeather ? (
             <div className="bg-card rounded-2xl shadow-md border border-border p-10 mb-6 text-center">
               <RefreshCw className="h-8 w-8 text-primary animate-spin mx-auto mb-3" />
@@ -180,63 +148,6 @@ const Dashboard = () => {
             </div>
           ) : null}
 
-          {/* How Long to Water */}
-          {weatherData && (
-            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Timer className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold text-foreground">How Long to Water</h2>
-              </div>
-              {weatherData.recommendation === 'WATER' && profile?.lawn_size_acres ? (
-                (() => {
-                  const lawnSqFt = profile.lawn_size_acres * 43560;
-                  const gallonsNeeded = weatherData.deficit * lawnSqFt * 0.623;
-                  const minutesToWater = Math.ceil(gallonsNeeded / 2);
-                  return (
-                    <div className="text-center py-4">
-                      <p className="text-4xl font-bold text-primary">{minutesToWater} min</p>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Based on your {profile.lawn_size_acres} acre lawn at 2 GPM flow rate
-                      </p>
-                    </div>
-                  );
-                })()
-              ) : weatherData.recommendation !== 'WATER' ? (
-                <p className="text-sm text-muted-foreground">No watering needed today</p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Add your lawn size in your profile to see watering duration.{' '}
-                  <button onClick={() => navigate('/onboarding')} className="text-primary hover:underline">
-                    Update profile
-                  </button>
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* SMS Verification Banner — scrolls to code entry */}
-          {showSmsBanner && (
-            <button
-              onClick={() => {
-                const el = document.getElementById('sms-settings-card');
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                setShowSmsBanner(false);
-              }}
-              className="w-full bg-primary/10 border border-primary/30 rounded-xl p-4 mt-6 flex items-start justify-between gap-3 text-left hover:bg-primary/15 transition-colors"
-            >
-              <p className="text-sm text-foreground font-medium">
-                📱 Check your phone — tap here to enter your verification code below.
-              </p>
-              <span className="text-muted-foreground hover:text-foreground text-lg leading-none shrink-0">×</span>
-            </button>
-          )}
-
-          {/* Daily SMS Alerts */}
-          <SmsSettingsCard
-            pendingPhone={smsPendingPhone}
-            onPendingPhoneHandled={() => setSmsPendingPhone(null)}
-          />
-
           {/* 30-Day History — gated */}
           {isFree ? (
             <LockedFeatureCard
@@ -251,19 +162,14 @@ const Dashboard = () => {
             <WateringHistoryChart />
           )}
 
-          {/* Lawn Profile Summary */}
+          {/* ZONE 2 — Notifications */}
+          <NotificationsCard />
+
+          {/* ZONE 3 — Your Lawn */}
           {profile && (
-            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
+            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold text-foreground">Your Lawn Profile</h2>
-                  {isFree && (
-                    <Badge variant="secondary" className="text-xs">Free Plan</Badge>
-                  )}
-                  {isPaid && (
-                    <Badge className="text-xs bg-primary/90">Pro</Badge>
-                  )}
-                </div>
+                <h2 className="text-lg font-semibold text-foreground">Your Lawn</h2>
                 <button
                   onClick={() => navigate('/onboarding')}
                   className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
@@ -272,110 +178,49 @@ const Dashboard = () => {
                   Edit
                 </button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                    <MapPin className="h-4 w-4 text-primary" />
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">ZIP Code</p>
                     <p className="text-sm font-medium text-foreground">{profile.zip_code || '—'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Leaf className="h-4 w-4 text-primary" />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Leaf className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Grass Type</p>
                     <p className="text-sm font-medium text-foreground">{profile.grass_type || 'Not set'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Droplets className="h-4 w-4 text-primary" />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Droplets className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Irrigation</p>
                     <p className="text-sm font-medium text-foreground">{profile.irrigation_type || 'Not set'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Ruler className="h-4 w-4 text-primary" />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Ruler className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Lawn Size</p>
-                    <p className="text-sm font-medium text-foreground">{profile.lawn_size_acres ? `${profile.lawn_size_acres} acres` : 'Not set'}</p>
+                    <p className="text-sm font-medium text-foreground">{profile.lawn_size_acres ? `${profile.lawn_size_acres} ac` : 'Not set'}</p>
                   </div>
                 </div>
               </div>
-
             </div>
           )}
 
-          {/* Subscription Status */}
-          <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-8">
-            <div className="flex items-center gap-2 mb-3">
-              <CreditCard className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground">Your Subscription</h2>
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <Badge variant={isPaid ? 'default' : 'secondary'}>{isPaid ? 'Premium' : 'Free'}</Badge>
-            </div>
-            {premiumUntil && (
-              <p className="text-sm text-muted-foreground mb-2">
-                Your premium access is active through {new Date(premiumUntil).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.
-              </p>
-            )}
-            {premiumSource === 'stripe' && (
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Active subscription — you'll be billed again on {profile?.subscription_ends_at ? new Date(profile.subscription_ends_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'renewal date'}.
-                </p>
-                {isPaid && profile && (
-                  <SubscriptionManager
-                    subscriptionCancelAtPeriodEnd={profile.subscription_cancel_at_period_end}
-                    subscriptionEndsAt={profile.subscription_ends_at}
-                    onUpdate={fetchProfile}
-                  />
-                )}
-              </div>
-            )}
-            {premiumSource === 'referral' && (
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Earned via referral program.</p>
-                {premiumUntil && new Date(premiumUntil).getTime() - Date.now() < 60 * 24 * 60 * 60 * 1000 && (
-                  <p className="text-sm text-foreground mt-2">
-                    Your free year ends soon —{' '}
-                    <Link to="/pricing" className="text-primary hover:underline font-medium">
-                      add a subscription to keep premium access
-                    </Link>.
-                  </p>
-                )}
-              </div>
-            )}
-            {isFree && (
-              <p className="text-sm text-muted-foreground">
-                Upgrade to premium for daily SMS alerts and more.{' '}
-                <Link to="/pricing" className="text-primary hover:underline font-medium">View plans</Link>
-              </p>
-            )}
-          </div>
-
-          {/* Referral Section */}
+          {/* ZONE 4 — Referral (reduced weight) */}
           {programActive && (
-            <div className="bg-card rounded-2xl shadow-md border border-border p-6 mt-6">
-              <div className="flex items-center gap-2 mb-2">
-                <Gift className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold text-foreground">Refer a Friend, Earn a Free Year</h2>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Share your link. When {threshold} friends sign up free, you get one year of premium — on us.
+            <div className="bg-card rounded-xl border border-border/50 p-5 mt-6">
+              <h3 className="text-sm font-semibold text-foreground mb-1">Refer a Friend, Earn a Free Year</h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                When {threshold} friends sign up, you get one year of premium free.
               </p>
               {premiumSource === 'referral' && premiumUntil && new Date(premiumUntil) > new Date() ? (
-                <p className="text-sm text-foreground">
-                  🎉 You've earned a free year of premium! Active through {new Date(premiumUntil).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.
+                <p className="text-xs text-foreground">
+                  🎉 Free year active through {new Date(premiumUntil).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.
                 </p>
               ) : referralCode ? (
                 <ReferralShareBlock
@@ -384,13 +229,13 @@ const Dashboard = () => {
                   threshold={threshold}
                 />
               ) : null}
-              <Link to="/referrals" className="text-sm text-primary hover:underline mt-3 inline-block">
-                Learn more about the referral program →
+              <Link to="/referrals" className="text-xs text-primary hover:underline mt-2 inline-block">
+                Learn more →
               </Link>
             </div>
           )}
 
-          {/* User Feedback */}
+          {/* Feedback */}
           <DashboardFeedback profile={profile} weatherData={weatherData} />
         </div>
       </main>
