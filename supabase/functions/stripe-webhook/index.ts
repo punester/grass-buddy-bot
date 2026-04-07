@@ -55,10 +55,24 @@ serve(async (req) => {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
-      const userId = session.client_reference_id;
+      let userId = session.client_reference_id;
+      
+      // Fallback: look up user by customer email if client_reference_id missing
       if (!userId) {
-        console.error("[stripe-webhook] No client_reference_id");
-        return new Response("OK", { status: 200 });
+        const customerEmail = session.customer_details?.email || session.customer_email;
+        if (customerEmail) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("email", customerEmail)
+            .single();
+          userId = profile?.id || null;
+          console.log(`[stripe-webhook] Resolved user by email: ${customerEmail} -> ${userId}`);
+        }
+        if (!userId) {
+          console.error("[stripe-webhook] No client_reference_id and could not resolve by email");
+          return new Response("OK", { status: 200 });
+        }
       }
 
       // Get subscription details

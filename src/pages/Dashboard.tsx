@@ -38,8 +38,23 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (searchParams.get('upgraded') === 'true') {
-      toast.success('Welcome to ThirstyGrass Pro 🌿');
-      window.history.replaceState({}, '', '/dashboard');
+      // Verify checkout with Stripe and upgrade profile
+      const verify = async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('verify-checkout');
+          if (error) {
+            console.error('Verify checkout error:', error);
+          } else if (data?.upgraded) {
+            toast.success('Welcome to ThirstyGrass Pro 🌿');
+          }
+        } catch (e) {
+          console.error('Verify checkout failed:', e);
+        }
+        window.history.replaceState({}, '', '/dashboard');
+        // Reload to pick up new tier
+        window.location.reload();
+      };
+      verify();
     }
   }, [searchParams]);
 
