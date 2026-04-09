@@ -255,19 +255,21 @@ export const fetchPrecipitationData = async (
     // Cache miss or error — proceed to fetch
   }
 
-  // Step 1 — ZIP to coordinates
+  // Step 1 — ZIP to coordinates via zippopotam.us (reliable US ZIP lookup)
   const geoRes = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(zipCode)}&count=1&country=US&format=json`
+    `https://api.zippopotam.us/us/${encodeURIComponent(zipCode)}`
   );
   if (!geoRes.ok) {
-    throw new Error(`Geocoding request failed (${geoRes.status})`);
-  }
-  const geoData = await geoRes.json();
-  if (!geoData.results || geoData.results.length === 0) {
     throw new Error(`Could not find a location for ZIP code "${zipCode}"`);
   }
-  const { latitude, longitude, name, admin1 } = geoData.results[0] as GeoResult;
-  const locationLabel = admin1 ? `${name}, ${admin1}` : name;
+  const geoData = await geoRes.json();
+  const place = geoData?.places?.[0];
+  if (!place) {
+    throw new Error(`Could not find a location for ZIP code "${zipCode}"`);
+  }
+  const latitude = parseFloat(place.latitude);
+  const longitude = parseFloat(place.longitude);
+  const locationLabel = `${place['place name']}, ${place['state abbreviation']}`;
 
   // Step 2 — Fetch weather data (now includes temperature)
   const weatherRes = await fetch(
